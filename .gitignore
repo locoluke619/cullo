@@ -1,0 +1,19 @@
+# API keys and secrets
+.env
+
+# Python virtual environment
+venv/
+
+# Photo data (large files)
+data/catalog.json
+docs/photos/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store
+
+# Original photos (too large for git)
+micheals_pictures/

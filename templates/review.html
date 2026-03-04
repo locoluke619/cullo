@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cullo — Review Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .group-stack { position: relative; }
+        .group-stack::before {
+            content: '';
+            position: absolute;
+            top: -5px; left: 5px; right: -5px; bottom: 5px;
+            border-radius: 12px;
+            background: var(--surface-hover);
+            border: 1px solid var(--border);
+            z-index: -1;
+        }
+        .group-stack::after {
+            content: '';
+            position: absolute;
+            top: -10px; left: 10px; right: -10px; bottom: 10px;
+            border-radius: 12px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            z-index: -2;
+            opacity: 0.6;
+        }
+        .group-badge {
+            position: absolute;
+            top: 10px; right: 10px;
+            background: rgba(0,0,0,0.75);
+            color: white;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 9px;
+            border-radius: 10px;
+            z-index: 5;
+            backdrop-filter: blur(4px);
+        }
+        .group-hint {
+            font-size: 11px;
+            color: var(--accent);
+            margin-top: 4px;
+            letter-spacing: 0.2px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>Cullo</h1>
+    <div class="header-stats">
+        <span class="stat"><span class="stat-dot green"></span> <span id="stat-approved">0</span> approved</span>
+        <span class="stat"><span class="stat-dot red"></span> <span id="stat-rejected">0</span> skipped</span>
+        <span class="stat"><span class="stat-dot yellow"></span> <span id="stat-pending">0</span> remaining</span>
+    </div>
+    <div class="header-actions">
+        <a href="/browse" style="padding:8px 16px;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:13px;text-decoration:none;transition:all 0.2s" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text-muted)'">Browse All Photos</a>
+        <a href="/client" style="padding:8px 16px;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:13px;text-decoration:none;transition:all 0.2s" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text-muted)'">Client Gallery ♥</a>
+        <button class="btn btn-primary" onclick="buildWebsite()">Build Website</button>
+    </div>
+</div>
+
+<div class="filters">
+    <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+    <button class="filter-btn" onclick="setFilter('groups', this)">Similar Groups</button>
+    <button class="filter-btn" onclick="setFilter('pending', this)">To Review</button>
+    <button class="filter-btn" onclick="setFilter('approved', this)">Approved</button>
+    <button class="filter-btn" onclick="setFilter('rejected', this)">Skipped</button>
+</div>
+
+<div class="photo-grid" id="photo-grid">
+    <div class="loading"><div class="spinner"></div><p>Loading photos...</p></div>
+</div>
+
+<!-- Single Photo Modal (for non-group photos) -->
+<div class="modal-overlay" id="modal" onclick="closeModalOutside(event)">
+    <div class="modal">
+        <div class="modal-image-container">
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+            <img class="modal-image" id="modal-image" src="" alt="">
+        </div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modal-title"></h2>
+                <div class="modal-score" id="modal-score"></div>
+            </div>
+            <div class="analysis-section">
+                <div class="analysis-label">Why This Photo Stands Out</div>
+                <div class="analysis-text" id="modal-summary"></div>
+            </div>
+            <div class="analysis-section" id="modal-reasoning-section" style="display:none">
+                <div class="analysis-label">Score Breakdown</div>
+                <div style="display:grid;gap:8px;margin-top:4px">
+                    <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:10px 12px">
+                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#22c55e;margin-bottom:4px">What Works</div>
+                        <div class="analysis-text" id="modal-strengths"></div>
+                    </div>
+                    <div style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:10px 12px">
+                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#ef4444;margin-bottom:4px">What's Holding It Back</div>
+                        <div class="analysis-text" id="modal-weaknesses"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="analysis-section">
+                <div class="analysis-label">Composition</div>
+                <div class="analysis-text" id="modal-composition"></div>
+            </div>
+            <div class="analysis-section">
+                <div class="analysis-label">Technical Quality</div>
+                <div class="analysis-text" id="modal-technical"></div>
+            </div>
+            <div class="analysis-section">
+                <div class="analysis-label">Mood &amp; Story</div>
+                <div class="analysis-text" id="modal-mood"></div>
+            </div>
+            <div class="analysis-section" id="modal-eyes-section" style="display:none">
+                <div class="analysis-label">👁 Eyes / Expression Check</div>
+                <div class="analysis-text" id="modal-eyes"></div>
+            </div>
+            <div class="analysis-section" id="modal-tips-section" style="display:none">
+                <div class="analysis-label">✏️ Editing Tips</div>
+                <div id="modal-tips" style="display:flex;flex-direction:column;gap:6px;margin-top:4px"></div>
+            </div>
+            <div class="analysis-section">
+                <div class="analysis-label">Recommended Use</div>
+                <div class="analysis-text" id="modal-use"></div>
+            </div>
+            <div class="file-info" id="modal-fileinfo"></div>
+        </div>
+        <div class="modal-actions" id="modal-actions"></div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let groups = [];
+let currentFilter = 'all';
+let currentPhotoId = null;
+
+async function loadGroups() {
+    try {
+        const [gr, sr] = await Promise.all([fetch('/api/groups'), fetch('/api/stats')]);
+        groups = await gr.json();
+        const stats = await sr.json();
+        document.getElementById('stat-approved').textContent = stats.approved;
+        document.getElementById('stat-rejected').textContent = stats.rejected;
+        document.getElementById('stat-pending').textContent = stats.pending;
+        renderGrid();
+    } catch {
+        document.getElementById('photo-grid').innerHTML =
+            '<div class="empty-state"><h2>Could not load photos</h2><p>Make sure Steps 1 and 2 have been run.</p></div>';
+    }
+}
+
+function renderGrid() {
+    const grid = document.getElementById('photo-grid');
+    let list = groups;
+
+    if (currentFilter === 'groups')   list = groups.filter(g => g.is_group && g.photo_ids.length > 1);
+    if (currentFilter === 'pending')  list = groups.filter(g => g.approved == null);
+    if (currentFilter === 'approved') list = groups.filter(g => g.approved === true);
+    if (currentFilter === 'rejected') list = groups.filter(g => g.approved === false);
+
+    if (!list.length) {
+        grid.innerHTML = '<div class="empty-state"><h2>Nothing here</h2><p>Try a different filter.</p></div>';
+        return;
+    }
+
+    grid.innerHTML = list.map(group => {
+        const best = group.best_photo;
+        const a = best.claude_analysis || {};
+        const score = a.score || 0;
+        const scoreClass = score >= 7.5 ? 'high' : score >= 5.5 ? 'medium' : 'low';
+        const isMulti = group.is_group && group.photo_ids.length > 1;
+        const statusClass = group.approved === true ? 'approved' : group.approved === false ? 'rejected' : '';
+        const count = group.photo_ids.length;
+        const title = isMulti ? group.theme : (a.title || best.filename);
+        const summary = a.summary || '';
+        const statusLabel = group.approved === true ? 'Approved' : group.approved === false ? 'Skipped' : '';
+
+        return `
+            <div class="photo-card ${statusClass} ${isMulti ? 'group-stack' : ''}"
+                 onclick="${isMulti ? `goCompare('${group.id}')` : `openSingle(${best.id})`}"
+                 style="cursor:pointer">
+                ${isMulti ? `<div class="group-badge">${count} shots</div>` : ''}
+                <img class="card-image" src="/photo/${best.id}" alt="${title}" loading="lazy">
+                <div class="card-info">
+                    <div class="card-title">${title}</div>
+                    <div class="card-score">
+                        <span class="score-badge ${scoreClass}">${score}/10</span>
+                        <span style="font-size:12px;color:var(--text-muted)">${isMulti ? `${count} similar shots` : (a.best_use || '')}</span>
+                    </div>
+                    <div class="card-summary">${summary}</div>
+                    ${isMulti ? `<div class="group-hint">Click to compare all ${count} shots side by side →</div>` : ''}
+                </div>
+                ${statusLabel ? `<div class="card-status status-${group.approved === true ? 'approved' : 'rejected'}">${statusLabel}</div>` : ''}
+            </div>
+        `;
+    }).join('');
+}
+
+function setFilter(f, btn) {
+    currentFilter = f;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderGrid();
+}
+
+function goCompare(groupId) {
+    window.location.href = `/compare/${groupId}`;
+}
+
+function openSingle(photoId) {
+    let photo = null;
+    for (const g of groups) {
+        const f = g.photos.find(p => p.id === photoId);
+        if (f) { photo = f; break; }
+    }
+    if (!photo) return;
+    currentPhotoId = photoId;
+    const a = photo.claude_analysis || {};
+    const r = a.score_reasoning || {};
+
+    document.getElementById('modal-image').src = `/photo/${photoId}`;
+    document.getElementById('modal-title').textContent = a.title || photo.filename;
+    document.getElementById('modal-score').textContent = `${a.score || '?'}/10`;
+    document.getElementById('modal-summary').textContent = a.summary || '-';
+    document.getElementById('modal-composition').textContent = a.composition || '-';
+    document.getElementById('modal-technical').textContent = a.technical || '-';
+    document.getElementById('modal-mood').textContent = (a.mood || '') + (a.story ? ' ' + a.story : '');
+    document.getElementById('modal-use').textContent = a.best_use || '-';
+    document.getElementById('modal-fileinfo').textContent =
+        `${photo.filename}  •  ${photo.width}×${photo.height}  •  ${photo.megapixels}MP  •  ${photo.file_size_mb}MB`;
+
+    // Score reasoning
+    const reasoningSection = document.getElementById('modal-reasoning-section');
+    if (r.strengths || r.weaknesses) {
+        document.getElementById('modal-strengths').textContent = r.strengths || '-';
+        document.getElementById('modal-weaknesses').textContent = r.weaknesses || '-';
+        reasoningSection.style.display = '';
+    } else {
+        reasoningSection.style.display = 'none';
+    }
+
+    // Eyes / expression check
+    const eyesSection = document.getElementById('modal-eyes-section');
+    const eyesText = [a.eyes_check, a.expression_notes].filter(Boolean).join(' — ');
+    if (eyesText && eyesText !== 'N/A' && eyesText !== 'No people') {
+        document.getElementById('modal-eyes').textContent = eyesText;
+        eyesSection.style.display = '';
+    } else {
+        eyesSection.style.display = 'none';
+    }
+
+    // Editing tips
+    const tipsSection = document.getElementById('modal-tips-section');
+    const tips = a.editing_tips || [];
+    if (tips.length) {
+        document.getElementById('modal-tips').innerHTML = tips.map(t =>
+            `<div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:7px;padding:8px 12px;font-size:13px;line-height:1.5">💡 ${t}</div>`
+        ).join('');
+        tipsSection.style.display = '';
+    } else {
+        tipsSection.style.display = 'none';
+    }
+
+    const actions = document.getElementById('modal-actions');
+    if (photo.approved === true) {
+        actions.innerHTML = `
+            <button class="btn-undo"   onclick="doAction(${photoId},'reset')">Undo</button>
+            <button class="btn-reject" onclick="doAction(${photoId},'reject')">Remove</button>`;
+    } else if (photo.approved === false) {
+        actions.innerHTML = `
+            <button class="btn-approve" onclick="doAction(${photoId},'approve')">Add to Website</button>
+            <button class="btn-undo"    onclick="doAction(${photoId},'reset')">Undo</button>`;
+    } else {
+        actions.innerHTML = `
+            <button class="btn-approve" onclick="doAction(${photoId},'approve')">Add to Website</button>
+            <button class="btn-reject"  onclick="doAction(${photoId},'reject')">Skip This Photo</button>`;
+    }
+
+    document.getElementById('modal').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+async function doAction(id, action) {
+    await fetch(`/api/photos/${id}/${action}`, { method: 'POST' });
+    closeModal();
+    showToast(action === 'approve' ? 'Added to website!' : 'Done', action === 'approve' ? 'success' : '');
+}
+
+function closeModal() {
+    document.getElementById('modal').classList.remove('active');
+    document.body.style.overflow = '';
+    loadGroups();
+}
+
+function closeModalOutside(e) {
+    if (e.target === document.getElementById('modal')) closeModal();
+}
+
+document.addEventListener('keydown', e => {
+    if (!document.getElementById('modal').classList.contains('active')) return;
+    if (e.key === 'Escape')             closeModal();
+    if (e.key === 'a' || e.key === 'A') { e.preventDefault(); doAction(currentPhotoId, 'approve'); }
+    if (e.key === 's' || e.key === 'S') { e.preventDefault(); doAction(currentPhotoId, 'reject'); }
+});
+
+async function buildWebsite() {
+    showToast('Building your website...', '');
+    const res = await fetch('/api/build', { method: 'POST' });
+    const r = await res.json();
+    showToast(r.status === 'success' ? 'Website built! Check docs/ folder.' : 'Build error — check terminal.', r.status === 'success' ? 'success' : 'error');
+}
+
+function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = `toast show ${type}`;
+    setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+loadGroups();
+</script>
+</body>
+</html>

@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browse All Photos</title>
+    <style>
+        :root {
+            --bg: #0f0f0f;
+            --surface: #1a1a1a;
+            --surface-hover: #222;
+            --border: #2a2a2a;
+            --text: #f0f0f0;
+            --text-muted: #777;
+            --accent: #6366f1;
+            --green: #22c55e;
+            --red: #ef4444;
+            --yellow: #eab308;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        .header {
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(15,15,15,0.92);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 24px;
+            display: flex; align-items: center; gap: 16px;
+        }
+        .back-btn {
+            padding: 7px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-muted);
+            font-size: 13px;
+            text-decoration: none;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        .back-btn:hover { color: var(--text); border-color: var(--text-muted); }
+        .header h1 { font-size: 17px; font-weight: 600; }
+        .header-sub { font-size: 13px; color: var(--text-muted); margin-left: auto; }
+
+        .toolbar {
+            padding: 10px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+        }
+        .filter-btn {
+            padding: 5px 13px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            color: var(--text-muted);
+            font-size: 13px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+        .filter-btn:hover { color: var(--text); border-color: var(--text-muted); }
+        .filter-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
+
+        .search-input {
+            margin-left: auto;
+            padding: 6px 12px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 13px;
+            font-family: inherit;
+            width: 200px;
+            outline: none;
+        }
+        .search-input:focus { border-color: var(--accent); }
+
+        /* Grid */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 3px;
+            padding: 3px;
+        }
+
+        .photo-tile {
+            position: relative;
+            aspect-ratio: 4/3;
+            overflow: hidden;
+            cursor: pointer;
+            background: var(--surface);
+        }
+
+        .photo-tile img {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            display: block;
+            transition: transform 0.3s;
+        }
+
+        .photo-tile:hover img { transform: scale(1.04); }
+
+        .tile-overlay {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            padding: 28px 10px 10px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.85));
+            opacity: 0;
+            transition: opacity 0.25s;
+            display: flex; justify-content: space-between; align-items: flex-end;
+        }
+
+        .photo-tile:hover .tile-overlay { opacity: 1; }
+
+        .tile-score {
+            font-size: 12px;
+            font-weight: 600;
+            padding: 2px 7px;
+            border-radius: 8px;
+        }
+        .tile-score.high   { background: var(--green);  color: white; }
+        .tile-score.medium { background: var(--yellow); color: #000; }
+        .tile-score.low    { background: #555; color: #ccc; }
+
+        .tile-filename {
+            font-size: 11px;
+            color: rgba(255,255,255,0.7);
+            font-family: monospace;
+        }
+
+        /* Status indicators */
+        .tile-status {
+            position: absolute; top: 8px; right: 8px;
+            font-size: 10px; font-weight: 700;
+            padding: 2px 7px; border-radius: 8px;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .tile-status.analyzed { background: var(--accent); color: white; }
+        .tile-status.approved { background: var(--green);  color: white; }
+        .tile-status.rejected { background: var(--red);    color: white; }
+
+        /* Rejected overlay */
+        .photo-tile.is-rejected { opacity: 0.3; }
+        .photo-tile.is-rejected:hover { opacity: 0.85; }
+
+        /* Detail panel (side drawer) */
+        .drawer-overlay {
+            display: none;
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 500;
+        }
+        .drawer-overlay.active { display: block; }
+
+        .drawer {
+            position: fixed; top: 0; right: 0; bottom: 0;
+            width: min(460px, 95vw);
+            background: var(--surface);
+            border-left: 1px solid var(--border);
+            z-index: 501;
+            display: flex; flex-direction: column;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+        .drawer.open { transform: translateX(0); }
+
+        .drawer-img {
+            width: 100%;
+            aspect-ratio: 4/3;
+            object-fit: cover;
+            display: block;
+            cursor: zoom-in;
+        }
+
+        .drawer-body { padding: 20px; flex: 1; overflow-y: auto; }
+
+        .drawer-filename {
+            font-size: 11px; color: var(--text-muted);
+            font-family: monospace; margin-bottom: 12px;
+        }
+
+        .scores-grid {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 8px; margin-bottom: 18px;
+        }
+
+        .score-item {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 12px;
+        }
+
+        .score-label {
+            font-size: 10px; text-transform: uppercase;
+            letter-spacing: 1px; color: var(--text-muted); margin-bottom: 4px;
+        }
+
+        .score-bar-wrap {
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        .score-bar {
+            flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden;
+        }
+
+        .score-bar-fill {
+            height: 100%; background: var(--accent); border-radius: 2px;
+            transition: width 0.4s ease;
+        }
+
+        .score-value { font-size: 12px; font-weight: 600; color: var(--text); flex-shrink: 0; }
+
+        .analysis-box {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 14px;
+        }
+        .analysis-box h4 {
+            font-size: 11px; text-transform: uppercase;
+            letter-spacing: 1px; color: var(--text-muted); margin-bottom: 6px;
+        }
+        .analysis-box p { font-size: 13px; line-height: 1.6; color: var(--text); }
+        .analysis-box .score-display {
+            font-size: 22px; font-weight: 700; color: var(--accent); margin-bottom: 8px;
+        }
+
+        .drawer-actions {
+            padding: 16px 20px;
+            border-top: 1px solid var(--border);
+            display: flex; gap: 8px;
+        }
+
+        .btn-analyze {
+            flex: 1; padding: 11px;
+            background: var(--accent); color: white;
+            border: none; border-radius: 9px;
+            font-size: 14px; font-weight: 600;
+            cursor: pointer; font-family: inherit;
+            transition: all 0.2s;
+        }
+        .btn-analyze:hover { filter: brightness(1.1); }
+        .btn-analyze:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .btn-approve {
+            flex: 1; padding: 11px;
+            background: var(--green); color: white;
+            border: none; border-radius: 9px;
+            font-size: 14px; font-weight: 600;
+            cursor: pointer; font-family: inherit;
+        }
+
+        .btn-secondary {
+            flex: 1; padding: 11px;
+            background: transparent; color: var(--text-muted);
+            border: 1px solid var(--border); border-radius: 9px;
+            font-size: 14px; cursor: pointer; font-family: inherit;
+        }
+
+        .loading-spinner {
+            display: inline-block; width: 14px; height: 14px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            margin-right: 6px; vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Zoom overlay */
+        .zoom-overlay {
+            display: none; position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.96);
+            z-index: 9999;
+            align-items: center; justify-content: center;
+            cursor: zoom-out;
+        }
+        .zoom-overlay.active { display: flex; }
+        .zoom-overlay img { max-width: 94vw; max-height: 94vh; object-fit: contain; }
+
+        .empty { text-align: center; padding: 80px 20px; color: var(--text-muted); }
+
+        /* Toast */
+        .toast {
+            position: fixed; bottom: 28px; left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: var(--surface); color: var(--text);
+            padding: 10px 20px; border-radius: 9px;
+            font-size: 13px; border: 1px solid var(--border);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            transition: transform 0.3s; z-index: 2000;
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast.success { border-color: rgba(34,197,94,0.4); }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <a class="back-btn" href="/">← Back to Review</a>
+    <h1>Browse All Photos</h1>
+    <span class="header-sub" id="header-sub">Loading...</span>
+</div>
+
+<div class="toolbar">
+    <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+    <button class="filter-btn" onclick="setFilter('not-analyzed', this)">Not Yet Analyzed</button>
+    <button class="filter-btn" onclick="setFilter('analyzed', this)">Analyzed</button>
+    <button class="filter-btn" onclick="setFilter('approved', this)">Approved</button>
+    <input class="search-input" type="text" placeholder="Search filename..." oninput="setSearch(this.value)">
+</div>
+
+<div class="grid" id="grid">
+    <div class="empty" style="grid-column:1/-1">Loading...</div>
+</div>
+
+<!-- Side Drawer -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+    <img class="drawer-img" id="drawer-img" src="" onclick="zoomDrawer()" alt="">
+    <div class="drawer-body" id="drawer-body"></div>
+    <div class="drawer-actions" id="drawer-actions"></div>
+</div>
+
+<!-- Zoom -->
+<div class="zoom-overlay" id="zoom" onclick="closeZoom()">
+    <img id="zoom-img" src="" alt="">
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let allPhotos = [];
+let currentFilter = 'all';
+let currentSearch = '';
+let currentPhotoId = null;
+
+async function loadPhotos() {
+    const res = await fetch('/api/browse');
+    allPhotos = await res.json();
+    const analyzed = allPhotos.filter(p => p.has_analysis).length;
+    document.getElementById('header-sub').textContent =
+        `${allPhotos.length} total photos  •  ${analyzed} analyzed  •  ${allPhotos.length - analyzed} not yet analyzed`;
+    render();
+}
+
+function filtered() {
+    let list = allPhotos;
+    if (currentFilter === 'not-analyzed') list = list.filter(p => !p.has_analysis);
+    if (currentFilter === 'analyzed')     list = list.filter(p => p.has_analysis);
+    if (currentFilter === 'approved')     list = list.filter(p => p.approved === true);
+    if (currentSearch) {
+        const q = currentSearch.toLowerCase();
+        list = list.filter(p => p.filename.toLowerCase().includes(q));
+    }
+    return list;
+}
+
+function render() {
+    const grid = document.getElementById('grid');
+    const list = filtered();
+
+    if (!list.length) {
+        grid.innerHTML = '<div class="empty" style="grid-column:1/-1">No photos match this filter.</div>';
+        return;
+    }
+
+    grid.innerHTML = list.map(p => {
+        const s = p.overall_score;
+        const cls = s >= 70 ? 'high' : s >= 45 ? 'medium' : 'low';
+        const rejClass = p.approved === false ? 'is-rejected' : '';
+
+        let statusHTML = '';
+        if (p.approved === true)   statusHTML = '<div class="tile-status approved">Added</div>';
+        else if (p.approved === false) statusHTML = '<div class="tile-status rejected">Skipped</div>';
+        else if (p.has_analysis)   statusHTML = '<div class="tile-status analyzed">Analyzed</div>';
+
+        return `
+            <div class="photo-tile ${rejClass}" onclick="openDrawer(${p.id})">
+                <img src="/photo/${p.id}" alt="${p.filename}" loading="lazy">
+                <div class="tile-overlay">
+                    <span class="tile-score ${cls}">${Math.round(s)}</span>
+                    <span class="tile-filename">${p.filename}</span>
+                </div>
+                ${statusHTML}
+            </div>
+        `;
+    }).join('');
+}
+
+function setFilter(f, btn) {
+    currentFilter = f;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    render();
+}
+
+function setSearch(val) {
+    currentSearch = val;
+    render();
+}
+
+// ---- Drawer ----
+function openDrawer(id) {
+    const photo = allPhotos.find(p => p.id === id);
+    if (!photo) return;
+    currentPhotoId = id;
+
+    document.getElementById('drawer-img').src = `/photo/${id}`;
+
+    const scores = photo.scores || {};
+    const scoreItems = [
+        { label: 'Sharpness',   val: scores.sharpness   || 0 },
+        { label: 'Exposure',    val: scores.exposure    || 0 },
+        { label: 'Contrast',    val: scores.contrast    || 0 },
+        { label: 'Color',       val: scores.color       || 0 },
+        { label: 'Resolution',  val: scores.resolution  || 0 },
+        { label: 'Composition', val: scores.composition || 0 },
+    ];
+
+    const scoresHTML = `
+        <div class="scores-grid">
+            ${scoreItems.map(s => `
+                <div class="score-item">
+                    <div class="score-label">${s.label}</div>
+                    <div class="score-bar-wrap">
+                        <div class="score-bar">
+                            <div class="score-bar-fill" style="width:${s.val}%"></div>
+                        </div>
+                        <div class="score-value">${Math.round(s.val)}</div>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+
+    let analysisHTML = '';
+    if (photo.has_analysis) {
+        // We don't have full analysis here — fetch it
+        analysisHTML = `<div class="analysis-box" id="analysis-content"><p style="color:var(--text-muted)">Loading analysis...</p></div>`;
+        fetchAnalysis(id);
+    } else {
+        analysisHTML = `
+            <div class="analysis-box">
+                <h4>Not yet analyzed</h4>
+                <p>This photo wasn't in the top ${100}% scored by the local algorithm.
+                Click "Send to Claude" below to get a full AI analysis and add it to your review pool.</p>
+            </div>
+        `;
+    }
+
+    document.getElementById('drawer-body').innerHTML = `
+        <div class="drawer-filename">${photo.filename}  •  ${photo.width}×${photo.height}  •  ${photo.megapixels}MP</div>
+        ${scoresHTML}
+        ${analysisHTML}
+    `;
+
+    renderDrawerActions(photo);
+
+    document.getElementById('drawer-overlay').classList.add('active');
+    document.getElementById('drawer').classList.add('open');
+}
+
+async function fetchAnalysis(id) {
+    // Pull full photo data from the catalog via groups endpoint (it has full analysis)
+    try {
+        const res = await fetch('/api/photos');
+        const photos = await res.json();
+        const p = photos.find(x => x.id === id);
+        if (!p) return;
+        const a = p.claude_analysis || {};
+        document.getElementById('analysis-content').innerHTML = `
+            <h4>Claude's Analysis</h4>
+            <div class="score-display">${a.score || '?'}/10</div>
+            <p><strong>${a.title || ''}</strong></p>
+            <p style="margin-top:8px">${a.summary || ''}</p>
+            ${a.composition ? `<p style="margin-top:8px;color:var(--text-muted)">${a.composition}</p>` : ''}
+        `;
+    } catch {}
+}
+
+function renderDrawerActions(photo) {
+    const el = document.getElementById('drawer-actions');
+    if (!photo.has_analysis) {
+        el.innerHTML = `
+            <button class="btn-secondary" onclick="closeDrawer()">Close</button>
+            <button class="btn-analyze" id="analyze-btn" onclick="sendToClaude(${photo.id})">
+                Send to Claude
+            </button>
+        `;
+    } else if (photo.approved === true) {
+        el.innerHTML = `
+            <button class="btn-secondary" onclick="doApproval(${photo.id},'reset')">Undo Approval</button>
+            <button class="btn-secondary" style="color:var(--red);border-color:var(--red)" onclick="doApproval(${photo.id},'reject')">Remove</button>
+        `;
+    } else if (photo.approved === false) {
+        el.innerHTML = `
+            <button class="btn-secondary" onclick="doApproval(${photo.id},'reset')">Undo</button>
+            <button class="btn-approve" onclick="doApproval(${photo.id},'approve')">Add to Website</button>
+        `;
+    } else {
+        el.innerHTML = `
+            <button class="btn-secondary" onclick="doApproval(${photo.id},'reject')">Skip</button>
+            <button class="btn-approve" onclick="doApproval(${photo.id},'approve')">Add to Website</button>
+        `;
+    }
+}
+
+async function sendToClaude(id) {
+    const btn = document.getElementById('analyze-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="loading-spinner"></span>Analyzing...';
+
+    const res = await fetch(`/api/photos/${id}/analyze`, { method: 'POST' });
+    const data = await res.json();
+
+    if (data.error) {
+        showToast('Error: ' + data.error, 'error');
+        btn.disabled = false;
+        btn.textContent = 'Send to Claude';
+        return;
+    }
+
+    // Update local state
+    const photo = allPhotos.find(p => p.id === id);
+    if (photo) photo.has_analysis = true;
+
+    showToast('Analysis complete! Photo added to review pool.', 'success');
+
+    // Refresh drawer
+    openDrawer(id);
+    render();
+}
+
+async function doApproval(id, action) {
+    await fetch(`/api/photos/${id}/${action}`, { method: 'POST' });
+    const photo = allPhotos.find(p => p.id === id);
+    if (photo) {
+        photo.approved = action === 'approve' ? true : action === 'reject' ? false : null;
+    }
+    renderDrawerActions(photo);
+    render();
+    showToast(action === 'approve' ? 'Added to website!' : 'Done', action === 'approve' ? 'success' : '');
+}
+
+function closeDrawer() {
+    document.getElementById('drawer-overlay').classList.remove('active');
+    document.getElementById('drawer').classList.remove('open');
+    currentPhotoId = null;
+}
+
+function zoomDrawer() {
+    const src = document.getElementById('drawer-img').src;
+    document.getElementById('zoom-img').src = src;
+    document.getElementById('zoom').classList.add('active');
+}
+
+function closeZoom() {
+    document.getElementById('zoom').classList.remove('active');
+}
+
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeZoom(); closeDrawer(); }
+});
+
+function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = `toast show ${type || ''}`;
+    setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+loadPhotos();
+</script>
+</body>
+</html>

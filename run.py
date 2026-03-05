@@ -208,12 +208,22 @@ def preflight():
                     idx = int(choice) - 1
                     if 0 <= idx < len(shoots):
                         chosen = shoots[idx][0]
-                        # Save as active workspace folder
+                        # Save as active workspace folder (create if list is empty)
                         ws_list = _read_workspaces()
+                        matched = False
                         for w in ws_list:
                             if w["id"] == ws["id"]:
                                 w["folder"] = str(chosen)
+                                matched = True
+                        if not matched:
+                            ws_list.append({
+                                "id": ws["id"],
+                                "name": ws.get("name", "Main Shoot"),
+                                "folder": str(chosen),
+                                "type": ws.get("type", "shoot"),
+                            })
                         _write_workspaces(ws_list)
+                        _set_active_workspace(ws["id"])
                         folder_path = chosen
                         no_photos = False
                         print()

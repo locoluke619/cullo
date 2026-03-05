@@ -29,6 +29,7 @@ def _read_workspaces():
     return []
 
 def _write_workspaces(ws_list):
+    WORKSPACES_FILE.parent.mkdir(parents=True, exist_ok=True)
     WORKSPACES_FILE.write_text(json.dumps({"workspaces": ws_list}, indent=2))
 
 def _get_active_workspace():

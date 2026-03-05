@@ -28,13 +28,50 @@ from config import *
 
 app = Flask(__name__)
 
-GROUPS_FILE = DATA_DIR / "groups.json"
 CLIENT_PICKS_FILE = DATA_DIR / "client_picks.json"
 THUMBS_DIR = DATA_DIR / "thumbs"
 THUMBS_DIR.mkdir(exist_ok=True)
 LOGOS_DIR = PROJECT_DIR / "logos"
 DESIGN_BRIEF_FILE = DATA_DIR / "design_brief.json"
 USAGE_FILE = DATA_DIR / "usage.json"
+
+# ── Workspace helpers (dynamic — reads disk each call so switching works) ─────
+def _read_workspaces():
+    if WORKSPACES_FILE.exists():
+        try:
+            return json.loads(WORKSPACES_FILE.read_text()).get("workspaces", [])
+        except Exception:
+            pass
+    return []
+
+def _write_workspaces(ws_list):
+    WORKSPACES_FILE.write_text(json.dumps({"workspaces": ws_list}, indent=2))
+
+def _get_active_workspace():
+    ws_list = _read_workspaces()
+    if not ws_list:
+        return {"id": "default", "name": "Main Shoot", "folder": PHOTOS_FOLDER, "type": WORKSPACE_TYPE}
+    active_id = ws_list[0]["id"]
+    if ACTIVE_WS_FILE.exists():
+        try:
+            active_id = json.loads(ACTIVE_WS_FILE.read_text()).get("id", active_id)
+        except Exception:
+            pass
+    for ws in ws_list:
+        if ws["id"] == active_id:
+            return ws
+    return ws_list[0]
+
+def _ws_data_dir():
+    ws = _get_active_workspace()
+    d = DATA_DIR / ws["id"]
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+def _get_catalog_file():      return _ws_data_dir() / "catalog.json"
+def _get_groups_file():       return _ws_data_dir() / "groups.json"
+def _get_manual_groups_file(): return _ws_data_dir() / "manual_groups.json"
+def _get_semantic_groups_file(): return _ws_data_dir() / "semantic_groups.json"
 
 MONTHLY_BUDGET = float(os.getenv("MONTHLY_BUDGET", "0") or "0")
 
@@ -66,69 +103,62 @@ def calc_cost(model, input_tokens, output_tokens):
     return round((input_tokens * p["input"] + output_tokens * p["output"]) / 1_000_000, 6)
 
 # ── In-memory catalog cache ───────────────────────────────────────────────────
-# Avoids re-reading catalog.json on every image request.
-# Invalidated automatically when the file changes on disk.
 _catalog_cache = []
 _catalog_mtime = 0.0
+_catalog_ws_id = None  # invalidate when workspace switches
 
 def load_catalog():
-    """Load the photo catalog, using an in-memory cache keyed on file mtime."""
-    global _catalog_cache, _catalog_mtime
-    if not CATALOG_FILE.exists():
+    global _catalog_cache, _catalog_mtime, _catalog_ws_id
+    f = _get_catalog_file()
+    ws_id = _get_active_workspace()["id"]
+    if not f.exists():
         return []
-    mtime = CATALOG_FILE.stat().st_mtime
-    if mtime != _catalog_mtime:
-        with open(CATALOG_FILE) as f:
-            _catalog_cache = json.load(f)
+    mtime = f.stat().st_mtime
+    if mtime != _catalog_mtime or ws_id != _catalog_ws_id:
+        with open(f) as fh:
+            _catalog_cache = json.load(fh)
         _catalog_mtime = mtime
+        _catalog_ws_id = ws_id
     return _catalog_cache
 
 
 def _invalidate_cache():
-    """Force next load_catalog() call to re-read from disk."""
     global _catalog_mtime
     _catalog_mtime = 0.0
 
 
 def save_catalog(catalog):
-    """Save the photo catalog to disk and invalidate the in-memory cache."""
-    with open(CATALOG_FILE, "w") as f:
-        json.dump(catalog, f, indent=2)
+    f = _get_catalog_file()
+    with open(f, "w") as fh:
+        json.dump(catalog, fh, indent=2)
     _invalidate_cache()
 
 
-SEMANTIC_GROUPS_FILE = DATA_DIR / "semantic_groups.json"
-MANUAL_GROUPS_FILE   = DATA_DIR / "manual_groups.json"
-
-
 def save_groups_manual(groups):
-    """
-    Save manually-edited groups to manual_groups.json (highest priority).
-    This file always wins over auto-generated groups from Step 2B/2C.
-    """
-    with open(MANUAL_GROUPS_FILE, "w") as f:
-        json.dump(groups, f, indent=2)
+    f = _get_manual_groups_file()
+    with open(f, "w") as fh:
+        json.dump(groups, fh, indent=2)
 
 
 def load_groups():
-    """
-    Load groups. Priority: manual_groups.json > semantic_groups.json > groups.json.
-    manual_groups.json is written by the dashboard's group-editing UI.
-    """
-    if MANUAL_GROUPS_FILE.exists():
-        with open(MANUAL_GROUPS_FILE) as f:
+    """Load groups. Priority: manual_groups.json > semantic_groups.json > groups.json."""
+    mf = _get_manual_groups_file()
+    sf = _get_semantic_groups_file()
+    gf = _get_groups_file()
+
+    if mf.exists():
+        with open(mf) as f:
             return json.load(f)
-    if SEMANTIC_GROUPS_FILE.exists():
-        with open(SEMANTIC_GROUPS_FILE) as f:
+    if sf.exists():
+        with open(sf) as f:
             raw = json.load(f)
-        # Convert semantic format → standard groups format
         return [
             {
                 "id": f"scene_{i}",
                 "is_group": True,
                 "theme": g["name"],
                 "photo_ids": g["photo_ids"],
-                "best_photo_id": None,   # resolved in get_groups()
+                "best_photo_id": None,
                 "recommendation": "",
                 "photo_notes": {},
                 "has_claude_comparison": False,
@@ -136,8 +166,8 @@ def load_groups():
             }
             for i, g in enumerate(raw)
         ]
-    if GROUPS_FILE.exists():
-        with open(GROUPS_FILE) as f:
+    if gf.exists():
+        with open(gf) as f:
             return json.load(f)
     return None
 
@@ -630,8 +660,9 @@ def regroup():
     data = request.json or {}
     threshold = int(data.get("threshold", 10))
     threshold = max(4, min(20, threshold))
-    if MANUAL_GROUPS_FILE.exists():
-        MANUAL_GROUPS_FILE.rename(MANUAL_GROUPS_FILE.with_suffix(".json.bak"))
+    mf = _get_manual_groups_file()
+    if mf.exists():
+        mf.rename(mf.with_suffix(".json.bak"))
 
     full_env = {**os.environ, "HASH_THRESHOLD": str(threshold), "PYTHONUNBUFFERED": "1"}
 
@@ -1013,6 +1044,62 @@ def build_website():
         })
     except Exception as e:
         return jsonify({"status": "error", "errors": str(e)}), 500
+
+
+@app.route("/api/workspaces")
+def get_workspaces():
+    ws_list = _read_workspaces()
+    active = _get_active_workspace()
+    return jsonify({"workspaces": ws_list, "active_id": active["id"]})
+
+
+@app.route("/api/workspaces", methods=["POST"])
+def create_workspace():
+    import re, time as _time
+    data = request.get_json(force=True)
+    name   = data.get("name", "").strip()
+    folder = data.get("folder", "").strip()
+    ws_type = data.get("type", "shoot")
+
+    if not name or not folder:
+        return jsonify({"error": "name and folder are required"}), 400
+
+    folder = folder.strip("'\"")
+    path = Path(folder) if Path(folder).is_absolute() else PROJECT_DIR / folder
+    if not path.exists():
+        return jsonify({"error": f"Folder not found: {folder}"}), 400
+
+    ws_id = re.sub(r"[^a-z0-9]", "_", name.lower())[:20].strip("_") + f"_{int(_time.time()) % 100000}"
+    ws_list = _read_workspaces()
+    ws_list.append({"id": ws_id, "name": name, "folder": str(path), "type": ws_type})
+    _write_workspaces(ws_list)
+    (DATA_DIR / ws_id).mkdir(parents=True, exist_ok=True)
+    return jsonify({"id": ws_id, "name": name, "folder": str(path), "type": ws_type})
+
+
+@app.route("/api/workspaces/<ws_id>/activate", methods=["POST"])
+def activate_workspace(ws_id):
+    ws_list = _read_workspaces()
+    if not any(w["id"] == ws_id for w in ws_list):
+        return jsonify({"error": "Workspace not found"}), 404
+    ACTIVE_WS_FILE.write_text(json.dumps({"id": ws_id}))
+    _invalidate_cache()
+    ws = next(w for w in ws_list if w["id"] == ws_id)
+    return jsonify({"active_id": ws_id, "workspace": ws})
+
+
+@app.route("/api/workspaces/<ws_id>", methods=["DELETE"])
+def delete_workspace(ws_id):
+    ws_list = _read_workspaces()
+    if len(ws_list) <= 1:
+        return jsonify({"error": "Cannot delete the only workspace"}), 400
+    ws_list = [w for w in ws_list if w["id"] != ws_id]
+    _write_workspaces(ws_list)
+    active = _get_active_workspace()
+    if active["id"] == ws_id:
+        ACTIVE_WS_FILE.write_text(json.dumps({"id": ws_list[0]["id"]}))
+        _invalidate_cache()
+    return jsonify({"ok": True})
 
 
 @app.route("/api/stats")
@@ -1500,7 +1587,7 @@ if __name__ == "__main__":
     print("=" * 55)
     print()
 
-    if not CATALOG_FILE.exists():
+    if not _get_catalog_file().exists():
         print("  ERROR: No catalog found!")
         print("  Run Steps 1 and 2 first:")
         print("    python scripts/01_scan_and_score.py")

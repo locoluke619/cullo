@@ -172,11 +172,30 @@ while true; do
     fi
 done
 
-if grep -q "^WORKSPACE_TYPE=" .env; then
-    sed -i '' "s|^WORKSPACE_TYPE=.*|WORKSPACE_TYPE=$WORKSPACE_TYPE|" .env
+# Resolve full path for workspace folder
+if [ "$PHOTO_PATH" = "photos" ]; then
+    WS_FOLDER="$PROJECT/photos"
 else
-    echo "WORKSPACE_TYPE=$WORKSPACE_TYPE" >> .env
+    WS_FOLDER="$PHOTO_PATH"
 fi
+
+# Save workspace to data/workspaces.json
+mkdir -p "$PROJECT/data/default"
+python3 -c "
+import json, pathlib
+ws_file = pathlib.Path('$PROJECT/data/workspaces.json')
+active_file = pathlib.Path('$PROJECT/data/active_workspace.json')
+ws_list = json.loads(ws_file.read_text()).get('workspaces', []) if ws_file.exists() else []
+# Update or create default workspace
+default = next((w for w in ws_list if w['id'] == 'default'), None)
+if default:
+    default['folder'] = '$WS_FOLDER'
+    default['type']   = '$WORKSPACE_TYPE'
+else:
+    ws_list.insert(0, {'id': 'default', 'name': 'Main Shoot', 'folder': '$WS_FOLDER', 'type': '$WORKSPACE_TYPE'})
+ws_file.write_text(json.dumps({'workspaces': ws_list}, indent=2))
+active_file.write_text(json.dumps({'id': 'default'}))
+"
 echo ""
 
 # ── API Key ───────────────────────────────────

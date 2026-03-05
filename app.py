@@ -1161,7 +1161,8 @@ def _make_jpeg(file_path, max_size=None):
         import rawpy
         with rawpy.imread(str(file_path)) as raw:
             rgb = raw.postprocess(use_camera_wb=True, half_size=True,
-                                  no_auto_bright=False, output_bps=8)
+                                  no_auto_bright=False, output_bps=8,
+                                  gamma=(2.222, 4.5))
         img = _Image.fromarray(rgb)
     else:
         img = _Image.open(file_path)

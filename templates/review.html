@@ -1056,10 +1056,6 @@ async function loadWorkspaceBar() {
         const data = await fetch('/api/workspaces').then(r => r.json());
         const bar = document.getElementById('workspace-bar');
         const tabs = document.getElementById('ws-tabs');
-        if (!data.workspaces || data.workspaces.length <= 1) {
-            bar.style.display = 'none';
-            return;
-        }
         bar.style.display = 'flex';
         tabs.innerHTML = data.workspaces.map(ws => {
             const active = ws.id === data.active_id;

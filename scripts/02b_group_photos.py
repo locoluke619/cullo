@@ -313,7 +313,7 @@ def main():
                 best_photo = analyzed_in_group[best_idx - 1]
             else:
                 best_photo = max(analyzed_in_group,
-                                 key=lambda p: p.get("claude_analysis", {}).get("score", 0))
+                                 key=lambda p: (p.get("claude_analysis") or {}).get("score", 0))
 
             photo_notes = {}
             for k, note in comparison.get("photos", {}).items():
@@ -331,8 +331,8 @@ def main():
             analyzed_in_group = [p for p in group if p["id"] in analyzed_ids]
             if analyzed_in_group:
                 best_photo = max(analyzed_in_group,
-                                 key=lambda p: p.get("claude_analysis", {}).get("score", 0))
-                theme = best_photo.get("claude_analysis", {}).get("title", "Similar shots")
+                                 key=lambda p: (p.get("claude_analysis") or {}).get("score", 0))
+                theme = (best_photo.get("claude_analysis") or {}).get("title", "Similar shots")
             else:
                 best_photo = max(group, key=lambda p: p.get("overall_score", 0))
                 theme = "Similar shots"
@@ -358,7 +358,7 @@ def main():
             "id": f"single_{photo['id']}",
             "photo_ids": [photo["id"]],
             "best_photo_id": photo["id"],
-            "theme": photo.get("claude_analysis", {}).get("title", photo.get("filename", "")),
+            "theme": (photo.get("claude_analysis") or {}).get("title", photo.get("filename", "")),
             "recommendation": "",
             "photo_notes": {},
             "is_group": False,

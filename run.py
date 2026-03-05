@@ -62,8 +62,8 @@ def get_catalog_file():
 def header():
     print()
     print("  ╔══════════════════════════════════════╗")
-    print("  ║   C U L L O                          ║")
-    print("  ║   AI Photo Curation Studio           ║")
+    print("  ║   c u l l . i o                      ║")
+    print("  ║   AI Photo Curation Studio            ║")
     print("  ╚══════════════════════════════════════╝")
     print()
 
@@ -178,7 +178,7 @@ def preflight():
     if not check_api_key(env):
         print("  ⚠  No API key found.")
         print()
-        print("  Cullo needs an Anthropic API key to analyze your photos.")
+        print("  cull.io needs an Anthropic API key to analyze your photos.")
         print("  Get one free at: https://console.anthropic.com")
         print()
         print("  Then open the  .env  file in this folder and paste it")
@@ -225,7 +225,7 @@ def preflight():
         else:
             print(f"  ⚠  No photos found in:  {folder_path}")
         print()
-        print("  Use  [c] Workspaces  to point Cullo at your photo folder.")
+        print("  Use  [c] Workspaces  to point cull.io at your photo folder.")
         print()
         ok = False
 
@@ -489,7 +489,7 @@ def quick_start(folder_path, env):
     print(f"  Photos:   {n}")
     print(f"  AI cost:  ~${est_cost:.2f} estimated  ({estimated} photos to Claude)")
     print()
-    print("  Cullo will scan, analyze, and group your photos")
+    print("  cull.io will scan, analyze, and group your photos")
     print("  then open the dashboard automatically.")
     print()
 
@@ -687,5 +687,5 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print()
         print()
-        print("  Stopped. Come back anytime — double-click Cullo to start.")
+        print("  Stopped. Come back anytime — double-click cull.io to start.")
         print()

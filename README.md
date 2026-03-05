@@ -1,36 +1,38 @@
-# Cullo — AI Photo Curation Studio
+# cull.io — AI Photo Curation Studio
 
-Cullo looks through your photos, finds the best ones using AI, and builds you a beautiful portfolio website. No coding required.
+cull.io looks through your photos, finds the best ones using AI, and builds you a beautiful portfolio website. No coding required.
 
 ---
 
 ## Getting Started
 
-### Step 1 — Download Cullo
+### Step 1 — Download
 
 1. On this GitHub page, click the green **Code** button
 2. Click **Download ZIP**
 3. Open your **Downloads** folder
 4. Double-click the ZIP file to unzip it
-5. Drag the unzipped **cullo** folder to your **Desktop**
+5. Drag the **cull.io** folder to your **Desktop**
 
-### Step 2 — Run the Setup (one time only)
+### Step 2 — Open cull.io
 
-1. Open the **cullo** folder on your Desktop
-2. Double-click **START HERE**
+1. Open the **cull.io** folder on your Desktop
+2. Double-click **Cull.io**
 
-> **Mac security prompt?** If you see "Apple cannot verify this app", go to **System Settings → Privacy & Security**, scroll down, and click **Open Anyway**. This is standard for any app downloaded outside the App Store — you only do it once.
+> **Mac security prompt?** If you see "Apple cannot verify this app", go to **System Settings → Privacy & Security**, scroll down, and click **Open Anyway**. This is standard for any app downloaded outside the App Store — you only need to do it once.
 
-A Terminal window will open and walk you through everything:
-- Installing the tools Cullo needs (~1 minute)
+**First time only:** A setup wizard walks you through everything in a Terminal window:
+- Installing the tools cull.io needs (~1 minute)
 - Entering your name for the portfolio website
-- Pointing Cullo to your photos
-- Telling Cullo whether these are straight-from-camera or already-edited photos
+- Pointing cull.io at your photos
+- Choosing whether your photos are straight-from-camera or already edited
 - Adding your AI key
+
+After that, double-clicking **Cull.io** goes straight to the menu.
 
 ### Step 3 — Get an AI Key
 
-Cullo uses Claude AI to write expert analysis of your photos. You need a free Anthropic account with a small amount of credits:
+cull.io uses Claude AI to write expert analysis of your photos. You need a free Anthropic account with a small amount of credits:
 
 1. Go to **https://console.anthropic.com** and sign up
 2. Go to **Settings → Billing** and add $5 in credits
@@ -41,21 +43,19 @@ Cullo uses Claude AI to write expert analysis of your photos. You need a free An
 
 ### Step 4 — Add Your Photos
 
-**Easiest:** Drop your photos into the **photos** folder inside the cullo folder.
+**Easiest:** Drop your photos into the **photos** folder inside the cull.io folder.
 
 **Already in another folder?** No problem — Setup asks where your photos are. You can type a path or drag the folder straight into the Terminal window.
 
-**Multiple shoots?** Use **[c] Workspaces** in the Cullo menu to add more folders and switch between them any time.
+**Multiple shoots?** Use **[c] Workspaces** in the menu to add more folders and switch between them any time.
 
-### Step 5 — Run Cullo
+### Step 5 — Run
 
-Double-click **Cullo** in the cullo folder.
-
-A menu appears. Choose **1** for the full pipeline — it walks through everything in order and asks before each step.
+Press **Enter** at the menu for Quick Start — cull.io asks a couple of questions then runs everything and opens your dashboard automatically.
 
 ---
 
-## What Cullo Does (Step by Step)
+## What cull.io Does (Step by Step)
 
 | Step | What Happens | Time | Cost |
 |------|-------------|------|------|
@@ -66,13 +66,13 @@ A menu appears. Choose **1** for the full pipeline — it walks through everythi
 | **Client Proof** | Export a file you can email your client — they tap ♥ on favourites | ~30 sec | Free |
 | **Build** | Generates your portfolio website | ~2 min | Free |
 
-Cullo tells you the **estimated cost before charging anything** and shows you the **actual cost** when analysis finishes.
+cull.io tells you the **estimated cost before charging anything** and shows you the **actual cost** when analysis finishes.
 
 ---
 
 ## Workspaces
 
-Cullo supports multiple workspaces — each one is a different folder of photos with its own analysis results and settings.
+cull.io supports multiple workspaces — each one is a different folder of photos with its own analysis results and settings.
 
 **Common uses:**
 - Switch between different shoots (wedding, portraits, landscape)
@@ -84,7 +84,7 @@ Cullo supports multiple workspaces — each one is a different folder of photos 
 - **Already edited** — Claude evaluates the edit itself: color grade, exposure balance, post-processing quality
 
 **Adding a workspace:**
-- In the Cullo menu, choose **[c] Workspaces**
+- In the cull.io menu, choose **[c] Workspaces**
 - Or in the dashboard, click **+ Add Folder** in the workspace bar at the top
 
 Switching workspaces swaps the entire dataset — photos, scores, analysis, and groups — to that folder.
@@ -93,7 +93,7 @@ Switching workspaces swaps the entire dataset — photos, scores, analysis, and 
 
 ## The Menu
 
-Every time you run Cullo you'll see:
+Every time you run cull.io you'll see:
 
 ```
   Workspace: Wedding June 2024  (RAW)
@@ -141,14 +141,14 @@ After running the pipeline, your browser opens automatically to the review dashb
 
 **Sharing with your client:**
 - Click **Export Client Proof ♥** in the top bar (or choose **9** in the menu)
-- Cullo generates a single file: `exports/client_proof.html`
+- cull.io generates a single file: `exports/client_proof.html`
 - Email it directly, or upload to Google Drive / iCloud / Dropbox and share the link
 - Your client opens the file in their browser — no app, no account needed
 - They tap ♥ on the photos they love, then click **Send My Picks** — their email opens pre-filled with their selections addressed to you
 
 **Getting client picks back into your dashboard:**
 - When the client sends their picks email, paste the whole email into **Import Client Picks** in the dashboard header
-- Cullo reads the picks code automatically and marks those photos with a **♥ Client Pick** badge
+- cull.io reads the picks code automatically and marks those photos with a **♥ Client Pick** badge
 - A **Client Picks** filter tab appears so you can see exactly what they loved
 
 ---
@@ -157,13 +157,13 @@ After running the pipeline, your browser opens automatically to the review dashb
 
 After approving your keepers, click **Export RAWs to Edit** in the dashboard header (or choose **6** in the menu).
 
-Cullo finds the RAW file matching each approved photo and copies them all into **exports/ready_to_edit/** — then opens that folder automatically.
+cull.io finds the RAW file matching each approved photo and copies them all into **exports/ready_to_edit/** — then opens that folder automatically.
 
 Drag it straight into Lightroom or Capture One. Every file in there is already a keeper you chose.
 
-**RAW+JPG shooters (most camera users):** Cullo uses the JPG for scoring and display, keeps the RAW for this export. No extra work needed.
+**RAW+JPG shooters (most camera users):** cull.io uses the JPG for scoring and display, keeps the RAW for this export. No extra work needed.
 
-**RAW-only shooters:** Cullo reads RAW files directly — just point it at your RAW folder and it handles everything.
+**RAW-only shooters:** cull.io reads RAW files directly — just point it at your RAW folder and it handles everything.
 
 ---
 
@@ -171,7 +171,7 @@ Drag it straight into Lightroom or Capture One. Every file in there is already a
 
 Choose **7 — Sneak peek** in the menu.
 
-Cullo picks your 9 best, most visually varied approved photos and exports them as square 1080×1080 crops into **docs/sneak_peek/**. Drag those 9 files into an Instagram carousel — ready to post.
+cull.io picks your 9 best, most visually varied approved photos and exports them as square 1080×1080 crops into **docs/sneak_peek/**. Drag those 9 files into an Instagram carousel — ready to post.
 
 ---
 
@@ -188,7 +188,7 @@ Go to **https://github.com** and sign up. Your username becomes part of your web
 3. Set it to **Public**
 4. Leave everything else unchecked → **Create repository**
 
-### 3. Push Cullo to GitHub
+### 3. Push cull.io to GitHub
 
 Open Terminal and run these one at a time:
 
@@ -217,7 +217,7 @@ https://YOUR-USERNAME.github.io/YOUR-REPO/
 
 ### 5. Updating after a new shoot
 
-Run Cullo, approve your picks, build the website, then:
+Run cull.io, approve your picks, build the website, then:
 
 ```bash
 git add docs/
@@ -248,15 +248,15 @@ Done — GitHub Pages updates within a minute.
 | Adobe DNG | .dng | Fully supported (also iPhone ProRAW + Android) |
 | Hasselblad RAW | .3fr | Fully supported |
 
-**RAW+JPG shooters:** If your camera saves both, Cullo uses the JPG for speed and keeps the RAW untouched for Lightroom. You get the best of both.
+**RAW+JPG shooters:** If your camera saves both, cull.io uses the JPG for speed and keeps the RAW untouched for Lightroom. You get the best of both.
 
-**RAW-only shooters:** Cullo reads your RAW files directly — no conversion needed.
+**RAW-only shooters:** cull.io reads your RAW files directly — no conversion needed.
 
 ---
 
 ## Privacy & Security
 
-**Completely reasonable to ask.** Here's exactly what Cullo does:
+**Completely reasonable to ask.** Here's exactly what cull.io does:
 
 ### What leaves your computer
 - **Your photos** — sent to Anthropic (the company that makes Claude AI) for analysis over an encrypted connection. Same as uploading to Google Photos or iCloud. Anthropic's privacy policy: anthropic.com/privacy
@@ -287,19 +287,19 @@ Open the `.env` file in the cullo folder with a text editor. Paste your key next
 Go to console.anthropic.com → Settings → Billing → add $5.
 
 **"No photos found"**
-Make sure your photos are in the folder shown at the top of the Cullo menu. Press **C** to open Workspaces and switch to a different folder.
+Make sure your photos are in the folder shown at the top of the cull.io menu. Press **C** to open Workspaces and switch to a different folder.
 
 **Browser doesn't open automatically**
 Go to `http://localhost:5000` in your browser manually.
 
 **Good photos not showing in the dashboard**
-Cullo only sends the top-scoring photos to Claude by default, but picks the best shot from each distinct scene so your whole shoot is represented. If you still feel something's missing, click **Browse All Photos** — unanalyzed photos appear desaturated. Click any → **Send to Claude** to analyze it on the spot.
+cull.io only sends the top-scoring photos to Claude by default, but picks the best shot from each distinct scene so your whole shoot is represented. If you still feel something's missing, click **Browse All Photos** — unanalyzed photos appear desaturated. Click any → **Send to Claude** to analyze it on the spot.
 
 **Something went wrong mid-way through**
-Both steps save as they go. The scan saves every 50 photos; Claude analysis saves after every single photo. Just run again — Cullo resumes where it stopped and skips anything already done.
+Both steps save as they go. The scan saves every 50 photos; Claude analysis saves after every single photo. Just run again — cull.io resumes where it stopped and skips anything already done.
 
 **Start completely fresh**
-Delete the **data** folder inside cullo, then run Cullo again.
+Delete the **data** folder inside the cull.io folder, then run cull.io again.
 
 ---
 
@@ -307,17 +307,17 @@ Delete the **data** folder inside cullo, then run Cullo again.
 
 | File / Folder | What it is |
 |--------------|-----------|
-| `START HERE` | Double-click to set everything up (one time only) |
-| `Cullo` | Double-click every time you want to use Cullo |
-| `run.py` | The main Cullo program |
+| `Cull.io` | Double-click to launch — handles setup on first run, then opens the menu |
+| `Cull.io` | Double-click every time you want to use cull.io |
+| `run.py` | The main cull.io program |
 | `photos/` | Default location to drop your photos |
 | `.env` | Your settings — API key, your name |
-| `data/` | Cullo's working files (scores, analysis, groups) |
+| `data/` | cull.io's working files (scores, analysis, groups) |
 | `data/workspaces.json` | Your workspace list — folders and their types |
 | `data/<workspace>/catalog.json` | Scores and AI analysis per workspace |
 | `data/design_brief.json` | Your website design preferences (saved from Design Consultant chat) |
 | `docs/` | Your generated website |
-| `logos/` | Cullo brand assets (logo, hero background) |
+| `logos/` | cull.io brand assets (logo, hero background) |
 | `exports/ready_to_edit/` | RAW files copied here after you approve keepers |
 | `exports/client_proof.html` | The file you send your client to pick favourites |
 | `docs/sneak_peek/` | Square-cropped photos exported for Instagram |
@@ -343,14 +343,14 @@ Your answers are saved to `data/design_brief.json` and used when building your w
 
 ## Understanding What's Happening (For the Curious)
 
-- **Culling** — the photography industry word for sorting through a shoot to find the keepers. That's where the name Cullo comes from.
-- **Local scoring** — Cullo looks at pixel data to score sharpness, exposure, contrast, colour, and composition. Free, instant, no internet.
-- **Scene clustering** — before sending photos to Claude, Cullo computes a quick visual fingerprint (perceptual hash) for each photo and groups visually similar ones together. It then picks the best shot from each group. This means a wedding with 50 altar shots sends 3–4 to Claude, not all 50 — so your whole shoot gets represented instead of one moment dominating.
+- **Culling** — the photography industry word for sorting through a shoot to find the keepers. That's where the name cull.io comes from.
+- **Local scoring** — cull.io looks at pixel data to score sharpness, exposure, contrast, colour, and composition. Free, instant, no internet.
+- **Scene clustering** — before sending photos to Claude, cull.io computes a quick visual fingerprint (perceptual hash) for each photo and groups visually similar ones together. It then picks the best shot from each group. This means a wedding with 50 altar shots sends 3–4 to Claude, not all 50 — so your whole shoot gets represented instead of one moment dominating.
 - **Claude AI** — reads your actual photos like a professional photography critic and writes detailed analysis for each one.
 - **Workspace type** — tells Claude how to evaluate your photos. "Straight from camera" means Claude helps you decide what to keep. "Already edited" means Claude evaluates how well the edit turned out.
-- **RAW files** — your camera's original uncompressed sensor data. Much more editing flexibility in Lightroom than a JPG. Cullo reads them using a library called rawpy.
-- **Virtual environment** — an isolated Python workspace so Cullo's tools don't interfere with anything else on your computer.
-- **localhost** — your own computer. `http://localhost:5000` means "open the Cullo app running on this machine."
+- **RAW files** — your camera's original uncompressed sensor data. Much more editing flexibility in Lightroom than a JPG. cull.io reads them using a library called rawpy.
+- **Virtual environment** — an isolated Python workspace so cull.io's tools don't interfere with anything else on your computer.
+- **localhost** — your own computer. `http://localhost:5000` means "open the cull.io app running on this machine."
 - **GitHub Pages** — a free service that turns your `docs/` folder into a live website.
 
 ---

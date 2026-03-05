@@ -72,7 +72,7 @@ fi
 
 # ── Your name ─────────────────────────────────
 echo "  ─────────────────────────────────────────"
-echo "  Step 1 of 3 — Your Name"
+echo "  Step 1 of 4 — Your Name"
 echo "  ─────────────────────────────────────────"
 echo ""
 echo "  This appears on your portfolio website."
@@ -87,7 +87,7 @@ echo ""
 
 # ── Photo folder ──────────────────────────────
 echo "  ─────────────────────────────────────────"
-echo "  Step 2 of 3 — Your Photos"
+echo "  Step 2 of 4 — Your Photos"
 echo "  ─────────────────────────────────────────"
 echo ""
 echo "  Where are the photos you want to sort through?"
@@ -143,9 +143,45 @@ else
 fi
 echo ""
 
+# ── Photo type ────────────────────────────────
+echo "  ─────────────────────────────────────────"
+echo "  Step 3 of 4 — Type of Photos"
+echo "  ─────────────────────────────────────────"
+echo ""
+echo "  Are these photos straight from your camera,"
+echo "  or have you already edited them?"
+echo ""
+echo "    1  Straight from camera  (RAW or unedited JPG)"
+echo "    2  Already edited        (Lightroom, Photoshop, etc.)"
+echo ""
+
+while true; do
+    read -p "  Enter 1 or 2: " PHOTO_TYPE_CHOICE
+    if [ "$PHOTO_TYPE_CHOICE" = "1" ]; then
+        WORKSPACE_TYPE="shoot"
+        echo ""
+        echo "  ✓  Got it — Claude will help you pick the keepers."
+        break
+    elif [ "$PHOTO_TYPE_CHOICE" = "2" ]; then
+        WORKSPACE_TYPE="edited"
+        echo ""
+        echo "  ✓  Got it — Claude will evaluate your edits."
+        break
+    else
+        echo "  Please enter 1 or 2."
+    fi
+done
+
+if grep -q "^WORKSPACE_TYPE=" .env; then
+    sed -i '' "s|^WORKSPACE_TYPE=.*|WORKSPACE_TYPE=$WORKSPACE_TYPE|" .env
+else
+    echo "WORKSPACE_TYPE=$WORKSPACE_TYPE" >> .env
+fi
+echo ""
+
 # ── API Key ───────────────────────────────────
 echo "  ─────────────────────────────────────────"
-echo "  Step 3 of 3 — Claude AI Key"
+echo "  Step 4 of 4 — Claude AI Key"
 echo "  ─────────────────────────────────────────"
 echo ""
 echo "  Cullo uses Claude AI to write expert analysis of your photos."

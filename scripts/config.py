@@ -36,6 +36,11 @@ SITE_AUTHOR = os.getenv("SITE_AUTHOR", "Photographer")
 # --- Client Proof ---
 PHOTOGRAPHER_EMAIL = os.getenv("PHOTOGRAPHER_EMAIL", "")
 
+# --- Workspace Type ---
+# "shoot"  = straight from camera (RAW or unedited JPG) — evaluate which shots to keep
+# "edited" = photos already edited in Lightroom/Photoshop — evaluate the edit quality
+WORKSPACE_TYPE = os.getenv("WORKSPACE_TYPE", "shoot")
+
 # --- Budget Tracker ---
 # Optional: set MONTHLY_BUDGET=20 in .env to show "Total: $X.XX / $20.00" in the dashboard
 MONTHLY_BUDGET = float(os.getenv("MONTHLY_BUDGET", "0") or "0")

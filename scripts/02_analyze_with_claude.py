@@ -52,16 +52,7 @@ def resize_for_api(image_path, max_size=1280):
     return base64.standard_b64encode(buffer.getvalue()).decode("utf-8")
 
 
-def analyze_photo(client, image_path, model):
-    """
-    Send a photo to Claude Vision and get a detailed analysis.
-    Returns a dictionary with Claude's analysis.
-    """
-    # Prepare the image
-    image_data = resize_for_api(image_path)
-
-    # Ask Claude to analyze the photo
-    prompt = """You are a professional photography educator and critic helping a photographer build a portfolio.
+PROMPT_SHOOT = """You are a professional photography educator and critic helping a photographer cull and build a portfolio from unedited shots.
 
 Analyze this photograph and respond in EXACTLY this JSON format (no other text):
 
@@ -97,6 +88,53 @@ Score 1-10 where:
 
 Be honest. A 10 requires perfect technique + perfect light + unrepeatable moment + strong emotion.
 For editing_tips: be specific like a photography teacher — name actual values and tools."""
+
+PROMPT_EDITED = """You are a professional photography editor and art director reviewing a photographer's finished, edited work.
+
+Analyze this edited photograph and respond in EXACTLY this JSON format (no other text):
+
+{
+    "title": "A short, evocative title (2-6 words)",
+    "score": 8.5,
+    "summary": "One sentence about the single strongest quality of this photo and its edit.",
+    "score_reasoning": {
+        "strengths": "2-3 specific reasons this edit works — what the photographer got right in post.",
+        "weaknesses": "2-3 honest notes on what could be refined in the edit. If near-perfect, note subtle things."
+    },
+    "composition": "2-3 sentences on framing, rule of thirds, leading lines, balance, use of negative space.",
+    "technical": "2-3 sentences on the edit quality: exposure balance, color grade, skin tones, shadow/highlight detail, noise.",
+    "mood": "1-2 sentences on the feeling or emotion this photo evokes — how the edit contributes to it.",
+    "story": "1-2 sentences on the moment or story captured.",
+    "editing_tips": [
+        "Tip 1: Specific refinement suggestion (e.g. 'The highlights on the sky are slightly blown — pull highlights -20 to recover cloud detail')",
+        "Tip 2: Another specific refinement",
+        "Tip 3: A color or crop note if relevant, or a third refinement"
+    ],
+    "expression_notes": "For photos with people: quality of expressions, genuine vs forced smiles, eye contact, engagement. Write 'No people' if none.",
+    "eyes_check": "For portraits/groups: explicitly note if anyone has closed eyes or is mid-blink. Write 'All eyes open' or describe the issue. Write 'N/A' if no people.",
+    "website_worthy": true,
+    "best_use": "hero image / gallery feature / supporting image"
+}
+
+Score 1-10 where the score reflects BOTH the photo and the quality of the edit:
+  - 1-3: Poor result — either the photo or edit has serious problems
+  - 4-5: Acceptable edit, nothing memorable
+  - 6-7: Good edit with clear strengths
+  - 8-9: Excellent — strong photo and polished edit, portfolio worthy
+  - 10: Extraordinary — perfect execution from capture to final edit
+
+Be honest and specific. Evaluate the edit as a professional would reviewing a photographer's delivered gallery."""
+
+
+def analyze_photo(client, image_path, model, workspace_type="shoot"):
+    """
+    Send a photo to Claude Vision and get a detailed analysis.
+    Returns a dictionary with Claude's analysis.
+    """
+    # Prepare the image
+    image_data = resize_for_api(image_path)
+
+    prompt = PROMPT_EDITED if workspace_type == "edited" else PROMPT_SHOOT
 
     try:
         message = client.messages.create(
@@ -443,7 +481,7 @@ def main():
             analyzed += 1
             continue
 
-        analysis = analyze_photo(client, image_path, CLAUDE_MODEL)
+        analysis = analyze_photo(client, image_path, CLAUDE_MODEL, WORKSPACE_TYPE)
         photo["claude_analysis"] = analysis
 
         if "error" in analysis:

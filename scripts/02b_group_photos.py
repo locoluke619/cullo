@@ -367,7 +367,6 @@ def main():
 
     # Save groups
     print("PROGRESS:95:Saving groups…", flush=True)
-    GROUPS_FILE = DATA_DIR / "groups.json"
     with open(GROUPS_FILE, "w") as f:
         json.dump(groups_data, f, indent=2)
 
@@ -403,7 +402,7 @@ def main():
             print()
 
     total = len(multi_groups) + len(single_groups)
-    print(f"  {total} total groups saved to data/groups.json")
+    print(f"  {total} total groups saved to {GROUPS_FILE}")
     print("PROGRESS:100:Done!", flush=True)
     print()
     print("  NEXT STEP:")

@@ -427,12 +427,105 @@ def workspace_manager():
 
 
 def launch_app():
-    print("  ── Cullo Review Dashboard ──")
-    print()
     print("  Your browser will open automatically.")
-    print("  Press Ctrl+C here to stop the app.")
+    print("  Press Ctrl+C here when you're done.")
     print()
     subprocess.run([PYTHON, str(PROJECT_DIR / "app.py")])
+
+
+def quick_start(folder_path, env):
+    """Ask minimal questions then run scan → AI → group → dashboard hands-free."""
+    import re, time as _time
+
+    ws = _get_active_workspace()
+    ws_list = _read_workspaces()
+
+    # ── Ask shoot name if still default ──────────────────────────
+    if ws.get("name") in ("Main Shoot", "", None):
+        print("  What's a good name for this shoot?")
+        print("  (e.g. Wedding June 2024, Family Portraits, Landscape Trip)")
+        print()
+        name = input("  Name (or Enter to skip): ").strip()
+        if name:
+            for w in ws_list:
+                if w["id"] == ws["id"]:
+                    w["name"] = name
+            _write_workspaces(ws_list)
+            ws["name"] = name
+        print()
+
+    # ── Ask type if not set ───────────────────────────────────────
+    ws_type = ws.get("type") or ""
+    if ws_type not in ("shoot", "edited"):
+        print("  Are these photos straight from your camera, or already edited?")
+        print()
+        print("    [1]  Straight from camera  (RAW or unedited JPG)")
+        print("    [2]  Already edited        (Lightroom, Photoshop, etc.)")
+        print()
+        while True:
+            t = input("  Enter 1 or 2: ").strip()
+            if t == "1":   ws_type = "shoot";  break
+            elif t == "2": ws_type = "edited"; break
+            print("  Please enter 1 or 2.")
+        for w in ws_list:
+            if w["id"] == ws["id"]:
+                w["type"] = ws_type
+        _write_workspaces(ws_list)
+        print()
+
+    # ── Summary + cost estimate ───────────────────────────────────
+    n         = count_photos(folder_path)
+    top_pct   = int(env.get("TOP_PERCENT", 20))
+    max_p     = int(env.get("MAX_CLAUDE_PHOTOS", 50))
+    estimated = min(int(n * top_pct / 100), max_p)
+    est_cost  = estimated * 0.015
+    badge     = "RAW" if ws_type == "shoot" else "Edited"
+
+    print("  ╔══════════════════════════════════════════════╗")
+    print("  ║   Your dashboard is on the way!              ║")
+    print("  ╚══════════════════════════════════════════════╝")
+    print()
+    print(f"  Shoot:    {ws.get('name', 'My Shoot')}  ({badge})")
+    print(f"  Photos:   {n}")
+    print(f"  AI cost:  ~${est_cost:.2f} estimated  ({estimated} photos to Claude)")
+    print()
+    print("  Cullo will scan, analyze, and group your photos")
+    print("  then open the dashboard automatically.")
+    print()
+
+    if not ask_yes("Ready? (this takes ~15–20 min for a full shoot)"):
+        return
+
+    print()
+
+    # ── Step 1: Scan ──────────────────────────────────────────────
+    print("  ── [1/3] Scanning & scoring  (free) ──────────────────────")
+    print()
+    ok = run_script("scripts/01_scan_and_score.py", "Scan & Score")
+    if not ok:
+        print("  Scan failed — check messages above.")
+        return
+
+    # ── Step 2: AI Analysis ───────────────────────────────────────
+    print()
+    print("  ── [2/3] AI analysis ──────────────────────────────────────")
+    print()
+    ok = run_script("scripts/02_analyze_with_claude.py", "AI Analysis")
+    if not ok:
+        print("  AI analysis failed — check messages above.")
+        return
+
+    # ── Step 3: Group similar shots ───────────────────────────────
+    print()
+    print("  ── [3/3] Grouping similar shots ───────────────────────────")
+    print()
+    run_script("scripts/02b_group_photos.py", "Grouping")
+
+    # ── Open dashboard ────────────────────────────────────────────
+    print()
+    print("  ✓  All done! Opening your dashboard…")
+    print()
+    launch_app()
 
 
 def full_pipeline(env, folder_path):
@@ -520,11 +613,11 @@ def menu(folder_path):
     print()
     print("  What would you like to do?")
     print()
-    print("  [1]  Full pipeline      scan → AI analysis → compare groups → review")
+    print("  [Enter]  Quick Start    scan → AI → group → open dashboard  ✦")
+    print()
     print("  [2]  Scan & score       analyze photo quality locally (free)")
     print("  [3]  AI analysis        send top photos to Claude (uses credits)")
-    print("  [4]  Group similar      find burst shots & compare them (visual hash)")
-    print("  [4c] Caption & group    one-sentence caption per photo + smart scene grouping")
+    print("  [4]  Group similar      find burst shots & compare them")
     print("  [5]  Review dashboard   open the review app in your browser")
     print("  [6]  Export RAWs        copy selected RAWs to ready_to_edit/ for Lightroom")
     print("  [7]  Sneak peek         export best 9 photos for Instagram")
@@ -532,8 +625,8 @@ def menu(folder_path):
     print("  [9]  Client proof       export a file you can email to your client")
     print("  [c]  Workspaces         switch folders or add a new shoot")
     print()
-    choice = input("  Enter a number (or press Enter for full pipeline): ").strip().lower()
-    return choice or "1"
+    choice = input("  Choose (or press Enter to Quick Start): ").strip().lower()
+    return choice or "0"
 
 
 def main():
@@ -560,8 +653,8 @@ def main():
                 print("  Folder issue — try again.")
             continue
 
-        if choice == "1":
-            full_pipeline(env, folder_path)
+        if choice == "0":
+            quick_start(folder_path, env)
         elif choice == "2":
             run_script("scripts/01_scan_and_score.py", "Scan & Score")
         elif choice == "3":

@@ -1,17 +1,29 @@
 #!/bin/bash
 # ==============================================
 #  CULLO — Start
-#  Double-click this file every time you want
-#  to use Cullo.
 # ==============================================
 
-cd "$(dirname "$0")"
+# If not running inside a Terminal, reopen this script in one
+if [ ! -t 1 ]; then
+    SCRIPT="$0"
+    osascript <<APPLESCRIPT
+tell application "Terminal"
+    activate
+    do script "bash '$SCRIPT'"
+end tell
+APPLESCRIPT
+    exit 0
+fi
+
+# Always run from the project folder (3 levels up from MacOS/)
+PROJECT="$(cd "$(dirname "$0")/../../.."; pwd)"
+cd "$PROJECT"
 
 # Check setup has been run
 if [ ! -d "venv" ]; then
     echo ""
     echo "  ✗  Cullo isn't set up yet."
-    echo "     Please double-click 'START HERE.command' first."
+    echo "     Please double-click 'START HERE' first."
     echo ""
     read -p "  Press Enter to close…"
     exit 1

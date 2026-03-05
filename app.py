@@ -156,27 +156,16 @@ def index():
 
 @app.route("/api/photos")
 def get_photos():
-    """Return all photos relevant to the review dashboard.
-    Includes: all Claude-analyzed photos + any approved/skipped photos (even if unanalyzed).
+    """Return all photos from the catalog.
+    Frontend filters by tab (Top Photos requires claude_analysis, etc.).
+    Returning all photos ensures visual search can surface unanalyzed photos.
     """
     catalog = load_catalog()
-    seen = set()
-    result = []
 
     def _sort_key(p):
         return (p.get("claude_analysis") or {}).get("score", 0) or p.get("overall_score", 0) / 10
 
-    # First: all Claude-analyzed photos
-    for p in catalog:
-        if p.get("claude_analysis") and "error" not in (p.get("claude_analysis") or {}):
-            seen.add(p["id"])
-            result.append(p)
-
-    # Also include approved/skipped photos that lack Claude analysis
-    for p in catalog:
-        if p["id"] not in seen and p.get("approved") is not None:
-            result.append(p)
-
+    result = [p for p in catalog if not p.get("error")]
     result.sort(key=_sort_key, reverse=True)
     return jsonify(result)
 

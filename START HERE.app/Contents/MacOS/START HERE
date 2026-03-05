@@ -1,11 +1,23 @@
 #!/bin/bash
 # ==============================================
 #  CULLO — First-Time Setup
-#  Double-click this file to get started.
 # ==============================================
 
-# Always run from this script's folder
-cd "$(dirname "$0")"
+# If not running inside a Terminal, reopen this script in one
+if [ ! -t 1 ]; then
+    SCRIPT="$0"
+    osascript <<APPLESCRIPT
+tell application "Terminal"
+    activate
+    do script "bash '$SCRIPT'"
+end tell
+APPLESCRIPT
+    exit 0
+fi
+
+# Always run from the project folder (3 levels up from MacOS/)
+PROJECT="$(cd "$(dirname "$0")/../../.."; pwd)"
+cd "$PROJECT"
 
 clear
 echo ""
@@ -32,7 +44,7 @@ if ! command -v python3 &> /dev/null; then
     open "https://www.python.org/downloads/" 2>/dev/null || true
     echo "    2. Click the big yellow 'Download Python' button"
     echo "    3. Open the file it downloads and follow the installer"
-    echo "    4. Once installed, double-click this file again"
+    echo "    4. Once installed, double-click 'START HERE' again"
     echo ""
     read -p "  Press Enter to close…"
     exit 1
@@ -92,18 +104,16 @@ while true; do
 
     if [ -z "$PHOTO_PATH" ]; then
         PHOTO_PATH="photos"
-        FULL_PATH="$(pwd)/photos"
+        FULL_PATH="$PROJECT/photos"
         echo ""
         echo "  ✓  Using the photos/ folder inside Cullo."
-        echo "     → Drop your JPG photos in:  $FULL_PATH"
+        echo "     → Drop your photos in:  $FULL_PATH"
         echo ""
         echo "  Opening that folder for you now…"
         open photos 2>/dev/null || true
         break
     else
-        # Strip surrounding quotes and whitespace (from drag-and-drop)
         PHOTO_PATH=$(echo "$PHOTO_PATH" | sed "s/^['\"]//;s/['\"]$//;s/^ //;s/ $//")
-        # Expand ~
         PHOTO_PATH="${PHOTO_PATH/#\~/$HOME}"
 
         if [ -d "$PHOTO_PATH" ]; then
@@ -183,9 +193,6 @@ while true; do
 done
 echo ""
 
-# ── Make .command files executable ────────────
-chmod +x "START HERE.command" "Cullo.command" 2>/dev/null || true
-
 # ── Done! ─────────────────────────────────────
 echo "  ╔══════════════════════════════════════╗"
 echo "  ║   You're all set!                    ║"
@@ -194,10 +201,10 @@ echo ""
 if [ "$PHOTO_PATH" = "photos" ]; then
     echo "  What to do next:"
     echo "    1. Add your photos to the 'photos' folder (just opened)"
-    echo "    2. Double-click  'Cullo.command'  to start"
+    echo "    2. Double-click  'Cullo'  to start"
 else
     echo "  What to do next:"
-    echo "    Double-click  'Cullo.command'  to start"
+    echo "    Double-click  'Cullo'  to start"
 fi
 echo ""
 read -p "  Press Enter to close this window…"

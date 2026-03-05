@@ -505,5 +505,5 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print()
         print()
-        print("  Stopped. Come back anytime — double-click Cullo.command to start.")
+        print("  Stopped. Come back anytime — double-click Cullo to start.")
         print()

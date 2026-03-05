@@ -18,5 +18,7 @@
     <string>10.14</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>CFBundleIconFile</key>
+    <string>cullo</string>
 </dict>
 </plist>

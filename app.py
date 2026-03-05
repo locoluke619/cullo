@@ -29,8 +29,10 @@ from config import *
 app = Flask(__name__)
 
 CLIENT_PICKS_FILE = DATA_DIR / "client_picks.json"
-THUMBS_DIR = DATA_DIR / "thumbs"
-THUMBS_DIR.mkdir(exist_ok=True)
+def _get_thumbs_dir():
+    d = _ws_data_dir() / "thumbs"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
 LOGOS_DIR = PROJECT_DIR / "logos"
 DESIGN_BRIEF_FILE = DATA_DIR / "design_brief.json"
 USAGE_FILE = DATA_DIR / "usage.json"
@@ -1186,7 +1188,7 @@ def serve_thumb(photo_id):
     Serve a 400px thumbnail. Generated once and cached to data/thumbs/.
     Grid views use this instead of full-res — much faster page loads.
     """
-    thumb_path = THUMBS_DIR / f"{photo_id}.jpg"
+    thumb_path = _get_thumbs_dir() / f"{photo_id}.jpg"
     if thumb_path.exists():
         resp = send_file(thumb_path, mimetype="image/jpeg")
         resp.headers["Cache-Control"] = "public, max-age=604800"
@@ -1378,7 +1380,7 @@ def api_visual_search():
 
     def get_thumb_b64(photo):
         """Return base64 JPEG of the photo thumbnail (use cached if available)."""
-        thumb_path = THUMBS_DIR / f"{photo['id']}.jpg"
+        thumb_path = _get_thumbs_dir() / f"{photo['id']}.jpg"
         if thumb_path.exists():
             return _base64.standard_b64encode(thumb_path.read_bytes()).decode("utf-8")
         # Generate on the fly

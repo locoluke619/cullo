@@ -2,14 +2,6 @@
 
 Cullo looks through your photos, finds the best ones using AI, and builds you a beautiful portfolio website. No coding required.
 
-**What's new in this release:**
-- **New dashboard** — shows your top 50 photos by AI score front-and-center. Similar groups are now a separate tab.
-- **Arrow key navigation** — press ← → in any photo modal to move through your photos without closing.
-- **Full comparison analysis** — the Compare page now shows Claude's full analysis (composition, technical, mood, editing tips) for every photo side-by-side.
-- **Compare strip** — when a photo in the top 50 has similar shots, a banner appears in the modal to jump straight to the compare view.
-- **AI Website Design Consultant** — chat with Claude to describe your vision before building. Claude asks you questions, captures your style preferences, and saves a design brief. Click **Design Website ✦** in the dashboard header.
-- **Cost transparency** — every Claude API call shows estimated cost before and actual tokens + cost after. A running session total is visible in the header.
-
 ---
 
 ## Getting Started
@@ -25,17 +17,15 @@ Cullo looks through your photos, finds the best ones using AI, and builds you a 
 ### Step 2 — Run the Setup (one time only)
 
 1. Open the **cullo** folder on your Desktop
-2. Find the file called **START HERE.command**
-3. Right-click it → choose **Open** → click **Open** in the popup
+2. Double-click **START HERE**
 
-> **Why right-click instead of double-click?**
-> The first time you run a downloaded file, Mac asks you to confirm it's safe.
-> After that first time, you can double-click it directly.
+> **Mac security prompt?** If you see "Apple cannot verify this app", go to **System Settings → Privacy & Security**, scroll down, and click **Open Anyway**. This is standard for any app downloaded outside the App Store — you only do it once.
 
-A black window (Terminal) will open and walk you through everything:
+A Terminal window will open and walk you through everything:
 - Installing the tools Cullo needs (~1 minute)
 - Entering your name for the portfolio website
 - Pointing Cullo to your photos
+- Telling Cullo whether these are straight-from-camera or already-edited photos
 - Adding your AI key
 
 ### Step 3 — Get an AI Key
@@ -55,11 +45,11 @@ Cullo uses Claude AI to write expert analysis of your photos. You need a free An
 
 **Already in another folder?** No problem — Setup asks where your photos are. You can type a path or drag the folder straight into the Terminal window.
 
-**Can change later:** In the Cullo menu, choose **C — Change folder** to switch to a different shoot any time without editing any files.
+**Multiple shoots?** Use **[c] Workspaces** in the Cullo menu to add more folders and switch between them any time.
 
 ### Step 5 — Run Cullo
 
-Double-click **Cullo.command** in the cullo folder.
+Double-click **Cullo** in the cullo folder.
 
 A menu appears. Choose **1** for the full pipeline — it walks through everything in order and asks before each step.
 
@@ -80,13 +70,35 @@ Cullo tells you the **estimated cost before charging anything** and shows you th
 
 ---
 
+## Workspaces
+
+Cullo supports multiple workspaces — each one is a different folder of photos with its own analysis results and settings.
+
+**Common uses:**
+- Switch between different shoots (wedding, portraits, landscape)
+- Keep edited photos separate from unedited ones
+- Compare results from different shoots without mixing them up
+
+**Each workspace has a type:**
+- **Straight from camera** — Claude focuses on which shots to keep, technical quality, and best-of-series comparisons
+- **Already edited** — Claude evaluates the edit itself: color grade, exposure balance, post-processing quality
+
+**Adding a workspace:**
+- In the Cullo menu, choose **[c] Workspaces**
+- Or in the dashboard, click **+ Add Folder** in the workspace bar at the top
+
+Switching workspaces swaps the entire dataset — photos, scores, analysis, and groups — to that folder.
+
+---
+
 ## The Menu
 
 Every time you run Cullo you'll see:
 
 ```
-  Folder:   Wedding_June2025  (847 photos)
-  Catalog:  ready ✓
+  Workspace: Wedding June 2024  (RAW)
+  Folder:    photos/Wedding_June2024  (847 photos)
+  Catalog:   ready ✓
 
   [1]  Full pipeline      scan → AI analysis → compare groups → review
   [2]  Scan & score       analyze photo quality locally (free)
@@ -97,16 +109,16 @@ Every time you run Cullo you'll see:
   [7]  Sneak peek         export best 9 photos for Instagram
   [8]  Build website      generate your portfolio website
   [9]  Client proof       export a file you can email to your client
-  [c]  Change folder      switch to a different shoot
+  [c]  Workspaces         switch folders or add a new shoot
 ```
-
-**[c] Change folder** is especially useful for working photographers — swap between shoots without touching any files.
 
 ---
 
 ## Using the Review Dashboard
 
 After running the pipeline, your browser opens automatically to the review dashboard at `http://localhost:5000`.
+
+**Workspace switcher:** If you have multiple workspaces, a tab bar appears at the top of the dashboard. Click any tab to switch — the dashboard reloads with that workspace's photos instantly.
 
 **Reviewing photos:**
 - Each photo shows Claude's title, score out of 10, and a one-line summary
@@ -151,7 +163,7 @@ Drag it straight into Lightroom or Capture One. Every file in there is already a
 
 **RAW+JPG shooters (most camera users):** Cullo uses the JPG for scoring and display, keeps the RAW for this export. No extra work needed.
 
-**RAW-only shooters:** Cullo now reads RAW files directly — just point it at your RAW folder and it handles everything.
+**RAW-only shooters:** Cullo reads RAW files directly — just point it at your RAW folder and it handles everything.
 
 ---
 
@@ -178,7 +190,7 @@ Go to **https://github.com** and sign up. Your username becomes part of your web
 
 ### 3. Push Cullo to GitHub
 
-Open Terminal (or the Cullo.command window already open) and run these one at a time:
+Open Terminal and run these one at a time:
 
 ```bash
 git init
@@ -258,15 +270,12 @@ Done — GitHub Pages updates within a minute.
 ### The review dashboard
 Runs at `http://localhost:5000` — only accessible from your own computer. Not reachable from the internet.
 
-### The .command files
-Plain text scripts — identical to commands you'd type yourself in Terminal. No admin access. Right-click → **Open With → TextEdit** to read every line before running.
-
 ---
 
 ## Troubleshooting
 
-**"The .command file won't open"**
-Right-click → Open → Open. Mac requires this the first time for downloaded files.
+**"Apple cannot verify this app"**
+Go to **System Settings → Privacy & Security**, scroll down, and click **Open Anyway**. You only need to do this once per app.
 
 **"Python is not installed"**
 Setup opens python.org automatically. Install Python, then run Setup again.
@@ -278,7 +287,7 @@ Open the `.env` file in the cullo folder with a text editor. Paste your key next
 Go to console.anthropic.com → Settings → Billing → add $5.
 
 **"No photos found"**
-Make sure your photos are in the folder shown at the top of the Cullo menu. Press **C** to change the folder if needed.
+Make sure your photos are in the folder shown at the top of the Cullo menu. Press **C** to open Workspaces and switch to a different folder.
 
 **Browser doesn't open automatically**
 Go to `http://localhost:5000` in your browser manually.
@@ -298,12 +307,14 @@ Delete the **data** folder inside cullo, then run Cullo again.
 
 | File / Folder | What it is |
 |--------------|-----------|
-| `START HERE.command` | Run once to set everything up |
-| `Cullo.command` | Run this every time you want to use Cullo |
+| `START HERE` | Double-click to set everything up (one time only) |
+| `Cullo` | Double-click every time you want to use Cullo |
 | `run.py` | The main Cullo program |
 | `photos/` | Default location to drop your photos |
-| `.env` | Your settings — API key, photo folder, your name |
+| `.env` | Your settings — API key, your name |
 | `data/` | Cullo's working files (scores, analysis, groups) |
+| `data/workspaces.json` | Your workspace list — folders and their types |
+| `data/<workspace>/catalog.json` | Scores and AI analysis per workspace |
 | `data/design_brief.json` | Your website design preferences (saved from Design Consultant chat) |
 | `docs/` | Your generated website |
 | `logos/` | Cullo brand assets (logo, hero background) |
@@ -336,6 +347,7 @@ Your answers are saved to `data/design_brief.json` and used when building your w
 - **Local scoring** — Cullo looks at pixel data to score sharpness, exposure, contrast, colour, and composition. Free, instant, no internet.
 - **Scene clustering** — before sending photos to Claude, Cullo computes a quick visual fingerprint (perceptual hash) for each photo and groups visually similar ones together. It then picks the best shot from each group. This means a wedding with 50 altar shots sends 3–4 to Claude, not all 50 — so your whole shoot gets represented instead of one moment dominating.
 - **Claude AI** — reads your actual photos like a professional photography critic and writes detailed analysis for each one.
+- **Workspace type** — tells Claude how to evaluate your photos. "Straight from camera" means Claude helps you decide what to keep. "Already edited" means Claude evaluates how well the edit turned out.
 - **RAW files** — your camera's original uncompressed sensor data. Much more editing flexibility in Lightroom than a JPG. Cullo reads them using a library called rawpy.
 - **Virtual environment** — an isolated Python workspace so Cullo's tools don't interfere with anything else on your computer.
 - **localhost** — your own computer. `http://localhost:5000` means "open the Cullo app running on this machine."

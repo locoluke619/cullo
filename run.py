@@ -208,19 +208,36 @@ def preflight():
                     idx = int(choice) - 1
                     if 0 <= idx < len(shoots):
                         chosen = shoots[idx][0]
+                        # Ask photo type
+                        print()
+                        print("  Are these photos straight from camera, or already edited?")
+                        print()
+                        print("    1  Straight from camera  (RAW or unedited JPG)")
+                        print("    2  Already edited        (Lightroom, Photoshop, etc.)")
+                        print()
+                        while True:
+                            tc = input("  Enter 1 or 2: ").strip()
+                            if tc == "1":
+                                ws_type = "shoot"
+                                break
+                            elif tc == "2":
+                                ws_type = "edited"
+                                break
+                            print("  Please enter 1 or 2.")
                         # Save as active workspace folder (create if list is empty)
                         ws_list = _read_workspaces()
                         matched = False
                         for w in ws_list:
                             if w["id"] == ws["id"]:
                                 w["folder"] = str(chosen)
+                                w["type"] = ws_type
                                 matched = True
                         if not matched:
                             ws_list.append({
                                 "id": ws["id"],
                                 "name": ws.get("name", "Main Shoot"),
                                 "folder": str(chosen),
-                                "type": ws.get("type", "shoot"),
+                                "type": ws_type,
                             })
                         _write_workspaces(ws_list)
                         _set_active_workspace(ws["id"])

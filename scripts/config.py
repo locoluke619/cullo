@@ -113,11 +113,8 @@ RAW_FORMATS = {
     ".iiq",                   # Phase One
 }
 
-# All formats Cullo can handle
+# All formats cull.io can handle
 SUPPORTED_FORMATS = STANDARD_FORMATS | RAW_FORMATS
-
-# --- File Paths for Data ---
-CATALOG_FILE = DATA_DIR / "catalog.json"
 
 # Make sure data directory exists
 DATA_DIR.mkdir(exist_ok=True)

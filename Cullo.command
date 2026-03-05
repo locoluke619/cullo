@@ -1,0 +1,59 @@
+#!/bin/bash
+# ==============================================
+#  CULLO — Start
+#  Double-click this file every time you want
+#  to use Cullo.
+# ==============================================
+
+cd "$(dirname "$0")"
+
+# Check setup has been run
+if [ ! -d "venv" ]; then
+    echo ""
+    echo "  ✗  Cullo isn't set up yet."
+    echo "     Please double-click 'START HERE.command' first."
+    echo ""
+    read -p "  Press Enter to close…"
+    exit 1
+fi
+
+source venv/bin/activate
+
+# Check API key
+API_KEY=$(grep "^ANTHROPIC_API_KEY=" .env 2>/dev/null | cut -d= -f2-)
+if [ -z "$API_KEY" ] || [ "$API_KEY" = "your-api-key-here" ]; then
+    clear
+    echo ""
+    echo "  ╔══════════════════════════════════════╗"
+    echo "  ║   C U L L O                          ║"
+    echo "  ╚══════════════════════════════════════╝"
+    echo ""
+    echo "  ⚠  You haven't added your API key yet."
+    echo ""
+    echo "  Opening the Anthropic website for you…"
+    open "https://console.anthropic.com" 2>/dev/null || true
+    echo ""
+    echo "  Steps:"
+    echo "    1. Create a free account and add \$5 in credits"
+    echo "    2. Click 'API Keys' → 'Create Key' → copy it"
+    echo "    3. Paste it below (starts with sk-ant-…)"
+    echo ""
+    while true; do
+        read -p "  Paste your API key: " NEW_KEY
+        if [[ "$NEW_KEY" == sk-ant-* ]]; then
+            sed -i '' "s|^ANTHROPIC_API_KEY=.*|ANTHROPIC_API_KEY=$NEW_KEY|" .env
+            echo ""
+            echo "  ✓  Saved! Starting Cullo…"
+            echo ""
+            break
+        elif [ -z "$NEW_KEY" ]; then
+            echo "  You need a key to use the AI features. Try again, or Ctrl+C to quit."
+        else
+            echo "  That doesn't look right — keys start with sk-ant-"
+        fi
+    done
+fi
+
+python run.py
+
+read -p "  Press Enter to close…"

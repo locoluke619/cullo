@@ -4,47 +4,53 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Browse All Photos</title>
+    <link rel="stylesheet" href="/static/style.css">
     <style>
         :root {
-            --bg: #0f0f0f;
-            --surface: #1a1a1a;
-            --surface-hover: #222;
-            --border: #2a2a2a;
-            --text: #f0f0f0;
-            --text-muted: #777;
-            --accent: #6366f1;
-            --green: #22c55e;
-            --red: #ef4444;
-            --yellow: #eab308;
+            --bg:           #101012;
+            --surface:      #1A1A1D;
+            --surface-hover:#222226;
+            --border:       rgba(161,161,170,0.18);
+            --text:         #FFFFFF;
+            --text-muted:   #E2E8F0;
+            --text-dim:     #A1A1AA;
+            --accent:       #A78BFA;
+            --accent-dim:   rgba(167,139,250,0.12);
+            --accent-border:rgba(167,139,250,0.35);
+            --green:        #22C55E;
+            --red:          #EF4444;
+            --yellow:       #F59E0B;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: var(--bg);
             color: var(--text);
+            -webkit-font-smoothing: antialiased;
         }
 
         .header {
             position: sticky; top: 0; z-index: 100;
-            background: rgba(15,15,15,0.92);
-            backdrop-filter: blur(20px);
+            background: rgba(16,16,18,0.92);
+            backdrop-filter: blur(24px);
             border-bottom: 1px solid var(--border);
-            padding: 14px 24px;
+            padding: 0 24px;
+            height: 60px;
             display: flex; align-items: center; gap: 16px;
         }
         .back-btn {
-            padding: 7px 14px;
+            padding: 6px 13px;
             border: 1px solid var(--border);
             border-radius: 8px;
-            color: var(--text-muted);
-            font-size: 13px;
+            color: var(--text-dim);
+            font-size: 12px;
             text-decoration: none;
-            transition: all 0.2s;
+            transition: all 0.18s;
             flex-shrink: 0;
         }
-        .back-btn:hover { color: var(--text); border-color: var(--text-muted); }
-        .header h1 { font-size: 17px; font-weight: 600; }
-        .header-sub { font-size: 13px; color: var(--text-muted); margin-left: auto; }
+        .back-btn:hover { color: var(--text-muted); border-color: rgba(161,161,170,0.4); }
+        .header h1 { font-size: 16px; font-weight: 700; }
+        .header-sub { font-size: 12px; color: var(--text-dim); margin-left: auto; }
 
         .toolbar {
             padding: 10px 24px;
@@ -79,7 +85,6 @@
         }
         .search-input:focus { border-color: var(--accent); }
 
-        /* Grid */
         .grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -94,15 +99,13 @@
             cursor: pointer;
             background: var(--surface);
         }
-
         .photo-tile img {
             width: 100%; height: 100%;
             object-fit: cover;
             display: block;
-            transition: transform 0.3s;
+            transition: opacity 0.2s;
         }
-
-        .photo-tile:hover img { transform: scale(1.04); }
+        .photo-tile:hover img { opacity: 0.88; }
 
         .tile-overlay {
             position: absolute; bottom: 0; left: 0; right: 0;
@@ -112,181 +115,291 @@
             transition: opacity 0.25s;
             display: flex; justify-content: space-between; align-items: flex-end;
         }
-
         .photo-tile:hover .tile-overlay { opacity: 1; }
 
-        .tile-score {
-            font-size: 12px;
-            font-weight: 600;
-            padding: 2px 7px;
-            border-radius: 8px;
-        }
+        .tile-score { font-size: 12px; font-weight: 600; padding: 2px 7px; border-radius: 8px; }
         .tile-score.high   { background: var(--green);  color: white; }
         .tile-score.medium { background: var(--yellow); color: #000; }
         .tile-score.low    { background: #555; color: #ccc; }
+        .tile-filename { font-size: 11px; color: rgba(255,255,255,0.7); font-family: monospace; }
 
-        .tile-filename {
-            font-size: 11px;
-            color: rgba(255,255,255,0.7);
-            font-family: monospace;
-        }
-
-        /* Status indicators */
         .tile-status {
             position: absolute; top: 8px; right: 8px;
             font-size: 10px; font-weight: 700;
             padding: 2px 7px; border-radius: 8px;
             text-transform: uppercase; letter-spacing: 0.5px;
         }
-        .tile-status.analyzed { background: var(--accent); color: white; }
-        .tile-status.approved { background: var(--green);  color: white; }
-        .tile-status.rejected { background: var(--red);    color: white; }
+        .tile-status.analyzed   { background: var(--accent); color: white; }
+        .tile-status.approved   { background: var(--green);  color: white; }
+        .tile-status.rejected   { background: var(--red);    color: white; }
+        .tile-status.client-pick{ background: #f43f5e;       color: white; }
 
-        /* Rejected overlay */
+        .tile-claude-score {
+            position: absolute; bottom: 8px; left: 8px;
+            font-size: 11px; font-weight: 700;
+            padding: 3px 8px; border-radius: 8px;
+            background: rgba(167,139,250,0.88);
+            backdrop-filter: blur(4px);
+            color: white; display: none;
+        }
+        .photo-tile:hover .tile-claude-score { display: block; }
+
+        .photo-tile.not-analyzed img { filter: saturate(0.55) brightness(0.9); }
+        .photo-tile.not-analyzed:hover img { filter: saturate(1) brightness(1); transition: filter 0.3s; }
         .photo-tile.is-rejected { opacity: 0.3; }
         .photo-tile.is-rejected:hover { opacity: 0.85; }
 
-        /* Detail panel (side drawer) */
-        .drawer-overlay {
+        .info-banner {
+            background: rgba(167,139,250,0.07);
+            border-bottom: 1px solid rgba(167,139,250,0.18);
+            padding: 9px 24px;
+            font-size: 13px; color: var(--text-muted);
+            display: flex; align-items: center; gap: 8px;
+        }
+        .info-banner strong { color: var(--text); }
+
+        /* ── Full-screen modal (same style as review.html) ── */
+        .modal-overlay {
             display: none;
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.6);
-            z-index: 500;
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.82);
+            backdrop-filter: blur(6px);
+            z-index: 600;
+            align-items: center;
+            justify-content: center;
         }
-        .drawer-overlay.active { display: block; }
+        .modal-overlay.active { display: flex; }
 
-        .drawer {
-            position: fixed; top: 0; right: 0; bottom: 0;
-            width: min(460px, 95vw);
+        .modal {
             background: var(--surface);
-            border-left: 1px solid var(--border);
-            z-index: 501;
-            display: flex; flex-direction: column;
-            transform: translateX(100%);
-            transition: transform 0.3s ease;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            width: min(860px, 96vw);
+            max-height: 92vh;
+            overflow-y: auto;
+            position: relative;
+            display: flex;
+            flex-direction: column;
         }
-        .drawer.open { transform: translateX(0); }
 
-        .drawer-img {
+        .modal-image-container {
+            position: relative;
+            background: #000;
+            border-radius: 16px 16px 0 0;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .modal-image {
             width: 100%;
-            aspect-ratio: 4/3;
-            object-fit: cover;
+            max-height: 55vh;
+            object-fit: contain;
             display: block;
             cursor: zoom-in;
         }
-
-        .drawer-body { padding: 20px; flex: 1; overflow-y: auto; }
-
-        .drawer-filename {
-            font-size: 11px; color: var(--text-muted);
-            font-family: monospace; margin-bottom: 12px;
+        .modal-close {
+            position: absolute; top: 12px; right: 14px;
+            width: 32px; height: 32px; border-radius: 50%;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(0,0,0,0.55);
+            color: white; font-size: 18px;
+            cursor: pointer; display: flex;
+            align-items: center; justify-content: center;
+            z-index: 10;
         }
+        .modal-close:hover { background: rgba(239,68,68,0.5); }
+
+        /* Approve / skip flash on the image */
+        .modal-flash {
+            position: absolute; inset: 0;
+            pointer-events: none; opacity: 0;
+        }
+        .modal-flash.green { background: rgba(34,197,94,0.25); border: 3px solid rgba(34,197,94,0.6); }
+        .modal-flash.red   { background: rgba(239,68,68,0.22);  border: 3px solid rgba(239,68,68,0.5); }
+        .modal-flash.show  { opacity: 1; transition: opacity 0.35s ease-out; }
+
+        /* Floating arrow nav */
+        .modal-nav {
+            position: fixed;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 44px; height: 44px;
+            border-radius: 50%;
+            border: 1px solid var(--border);
+            background: rgba(26,26,29,0.88);
+            backdrop-filter: blur(8px);
+            color: var(--text-muted);
+            font-size: 18px;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            z-index: 700;
+            transition: all 0.18s;
+        }
+        .modal-nav:hover { border-color: var(--accent); color: var(--accent); }
+        .modal-nav:disabled { opacity: 0.25; cursor: default; }
+        .modal-nav.prev { left: 18px; }
+        .modal-nav.next { right: 18px; }
+
+        .modal-content { padding: 20px 26px 8px; }
+        .modal-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+        .modal-title { font-size: 17px; font-weight: 700; flex: 1; }
+        .modal-score { font-size: 22px; font-weight: 700; color: var(--accent); flex-shrink: 0; }
+        .modal-subtitle { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+
+        .analysis-section { margin-bottom: 12px; }
+        .analysis-label {
+            font-size: 10px; text-transform: uppercase;
+            letter-spacing: 1px; color: var(--text-dim);
+            font-weight: 600; margin-bottom: 4px;
+        }
+        .analysis-text { font-size: 13px; line-height: 1.65; color: var(--text-muted); }
 
         .scores-grid {
-            display: grid; grid-template-columns: 1fr 1fr;
-            gap: 8px; margin-bottom: 18px;
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: 6px; margin-bottom: 14px;
         }
-
         .score-item {
             background: var(--bg);
             border: 1px solid var(--border);
             border-radius: 8px;
-            padding: 10px 12px;
+            padding: 8px 10px;
         }
+        .score-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); margin-bottom: 4px; }
+        .score-bar-wrap { display: flex; align-items: center; gap: 8px; }
+        .score-bar { flex: 1; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+        .score-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; }
+        .score-value { font-size: 11px; font-weight: 600; color: var(--text); flex-shrink: 0; }
 
-        .score-label {
-            font-size: 10px; text-transform: uppercase;
-            letter-spacing: 1px; color: var(--text-muted); margin-bottom: 4px;
-        }
+        .file-info { font-size: 11px; color: var(--text-dim); font-family: monospace; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
 
-        .score-bar-wrap {
-            display: flex; align-items: center; gap: 8px;
-        }
-
-        .score-bar {
-            flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden;
-        }
-
-        .score-bar-fill {
-            height: 100%; background: var(--accent); border-radius: 2px;
-            transition: width 0.4s ease;
-        }
-
-        .score-value { font-size: 12px; font-weight: 600; color: var(--text); flex-shrink: 0; }
-
-        .analysis-box {
-            background: var(--bg);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 14px;
-            margin-bottom: 14px;
-        }
-        .analysis-box h4 {
-            font-size: 11px; text-transform: uppercase;
-            letter-spacing: 1px; color: var(--text-muted); margin-bottom: 6px;
-        }
-        .analysis-box p { font-size: 13px; line-height: 1.6; color: var(--text); }
-        .analysis-box .score-display {
-            font-size: 22px; font-weight: 700; color: var(--accent); margin-bottom: 8px;
-        }
-
-        .drawer-actions {
-            padding: 16px 20px;
-            border-top: 1px solid var(--border);
+        .modal-actions {
+            padding: 14px 26px 20px;
             display: flex; gap: 8px;
         }
-
-        .btn-analyze {
-            flex: 1; padding: 11px;
-            background: var(--accent); color: white;
-            border: none; border-radius: 9px;
-            font-size: 14px; font-weight: 600;
-            cursor: pointer; font-family: inherit;
-            transition: all 0.2s;
-        }
-        .btn-analyze:hover { filter: brightness(1.1); }
-        .btn-analyze:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        .btn-approve {
-            flex: 1; padding: 11px;
+        .btn-approve-m {
+            flex: 2; padding: 11px;
             background: var(--green); color: white;
             border: none; border-radius: 9px;
             font-size: 14px; font-weight: 600;
             cursor: pointer; font-family: inherit;
+            transition: filter 0.18s;
         }
-
-        .btn-secondary {
+        .btn-approve-m:hover { filter: brightness(1.1); }
+        .btn-reject-m {
             flex: 1; padding: 11px;
-            background: transparent; color: var(--text-muted);
+            background: transparent; color: var(--text-dim);
             border: 1px solid var(--border); border-radius: 9px;
-            font-size: 14px; cursor: pointer; font-family: inherit;
+            font-size: 13px; cursor: pointer; font-family: inherit;
+            transition: all 0.18s;
+        }
+        .btn-reject-m:hover { border-color: var(--red); color: var(--red); }
+        .btn-undo-m {
+            flex: 1; padding: 11px;
+            background: transparent; color: var(--text-dim);
+            border: 1px solid var(--border); border-radius: 9px;
+            font-size: 13px; cursor: pointer; font-family: inherit;
+            transition: all 0.18s;
+        }
+        .btn-undo-m:hover { border-color: rgba(161,161,170,0.5); color: var(--text-muted); }
+        .btn-claude-m {
+            flex: 2; padding: 11px;
+            background: var(--accent-dim); color: var(--accent);
+            border: 1px solid var(--accent-border); border-radius: 9px;
+            font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+            transition: all 0.18s;
+        }
+        .btn-claude-m:hover { background: rgba(167,139,250,0.2); }
+        .btn-claude-m:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .kbd-hint {
+            position: absolute; bottom: 10px; left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px; color: var(--text-dim);
+            white-space: nowrap; pointer-events: none;
+        }
+        .kbd-hint kbd {
+            background: rgba(255,255,255,0.07);
+            border: 1px solid var(--border);
+            border-radius: 3px; padding: 1px 4px;
+            font-size: 9px; font-family: monospace;
         }
 
-        .loading-spinner {
-            display: inline-block; width: 14px; height: 14px;
-            border: 2px solid rgba(255,255,255,0.3);
-            border-top-color: white;
-            border-radius: 50%;
-            animation: spin 0.7s linear infinite;
-            margin-right: 6px; vertical-align: middle;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        /* Zoom overlay */
+        /* Zoom / fullscreen overlay */
         .zoom-overlay {
-            display: none; position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.96);
+            display: none; position: fixed; inset: 0;
+            background: #000;
             z-index: 9999;
             align-items: center; justify-content: center;
-            cursor: zoom-out;
+            flex-direction: column;
         }
         .zoom-overlay.active { display: flex; }
-        .zoom-overlay img { max-width: 94vw; max-height: 94vh; object-fit: contain; }
+        .zoom-overlay img { max-width: 100vw; max-height: 100vh; object-fit: contain; cursor: zoom-out; }
+
+        .zoom-flash {
+            position: absolute; inset: 0;
+            pointer-events: none; opacity: 0;
+        }
+        .zoom-flash.green { background: rgba(34,197,94,0.22); border: 4px solid rgba(34,197,94,0.6); }
+        .zoom-flash.red   { background: rgba(239,68,68,0.20);  border: 4px solid rgba(239,68,68,0.5); }
+        .zoom-flash.show  { opacity: 1; transition: opacity 0.35s ease-out; }
+
+        .zoom-dir-label {
+            position: absolute; font-size: 52px; font-weight: 900;
+            pointer-events: none; opacity: 0; transform: scale(0.7);
+            transition: all 0.35s ease-out;
+        }
+        .zoom-dir-label.keep { color: rgba(34,197,94,0.95); top: 32px; right: 36px; }
+        .zoom-dir-label.skip { color: rgba(239,68,68,0.9);  bottom: 32px; left: 36px; }
+        .zoom-dir-label.show { opacity: 1; transform: scale(1); transition: opacity 0s, transform 0s; }
+
+        .zoom-nav {
+            position: absolute; top: 50%; transform: translateY(-50%);
+            width: 44px; height: 44px; border-radius: 50%;
+            border: 1px solid rgba(255,255,255,0.15);
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(6px);
+            color: rgba(255,255,255,0.7); font-size: 18px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: all 0.15s; z-index: 2;
+        }
+        .zoom-nav:hover { border-color: var(--accent); color: var(--accent); }
+        .zoom-nav:disabled { opacity: 0.2; cursor: default; }
+        .zoom-nav.prev { left: 18px; }
+        .zoom-nav.next { right: 18px; }
+
+        .zoom-bar {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            padding: 16px 24px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.85));
+            display: flex; align-items: center; gap: 14px;
+        }
+        .zoom-bar-title { flex: 1; font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.9); }
+        .zoom-bar-score { font-size: 13px; font-weight: 700; color: var(--accent); }
+        .zoom-bar-hints { font-size: 11px; color: rgba(255,255,255,0.45); white-space: nowrap; }
+
+        .zoom-approve-btn {
+            padding: 7px 18px; background: var(--green); color: white;
+            border: none; border-radius: 8px; font-size: 13px; font-weight: 700;
+            cursor: pointer; font-family: inherit; transition: filter 0.15s;
+        }
+        .zoom-approve-btn:hover { filter: brightness(1.1); }
+        .zoom-skip-btn {
+            padding: 7px 14px; background: transparent; color: rgba(255,255,255,0.5);
+            border: 1px solid rgba(255,255,255,0.18); border-radius: 8px;
+            font-size: 13px; cursor: pointer; font-family: inherit; transition: all 0.15s;
+        }
+        .zoom-skip-btn:hover { border-color: var(--red); color: var(--red); }
+
+        .zoom-close-btn {
+            position: absolute; top: 14px; right: 16px;
+            width: 34px; height: 34px; border-radius: 50%;
+            border: 1px solid rgba(255,255,255,0.15);
+            background: rgba(0,0,0,0.55); color: white; font-size: 18px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            z-index: 3; transition: background 0.15s;
+        }
+        .zoom-close-btn:hover { background: rgba(239,68,68,0.5); }
 
         .empty { text-align: center; padding: 80px 20px; color: var(--text-muted); }
 
-        /* Toast */
         .toast {
             position: fixed; bottom: 28px; left: 50%;
             transform: translateX(-50%) translateY(80px);
@@ -308,11 +421,15 @@
     <span class="header-sub" id="header-sub">Loading...</span>
 </div>
 
+<div class="info-banner" id="info-banner">Loading...</div>
+
 <div class="toolbar">
     <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
-    <button class="filter-btn" onclick="setFilter('not-analyzed', this)">Not Yet Analyzed</button>
-    <button class="filter-btn" onclick="setFilter('analyzed', this)">Analyzed</button>
+    <button class="filter-btn" onclick="setFilter('not-analyzed', this)">Not Yet Sent to Claude</button>
+    <button class="filter-btn" onclick="setFilter('analyzed', this)">Claude Analyzed</button>
     <button class="filter-btn" onclick="setFilter('approved', this)">Approved</button>
+    <button class="filter-btn" onclick="setFilter('client-pick', this)">Client Picks ♥</button>
+    <button class="filter-btn" id="sort-btn" onclick="toggleSort(this)" title="Sort order">Sort: Best First</button>
     <input class="search-input" type="text" placeholder="Search filename..." oninput="setSearch(this.value)">
 </div>
 
@@ -320,100 +437,214 @@
     <div class="empty" style="grid-column:1/-1">Loading...</div>
 </div>
 
-<!-- Side Drawer -->
-<div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
-<div class="drawer" id="drawer">
-    <img class="drawer-img" id="drawer-img" src="" onclick="zoomDrawer()" alt="">
-    <div class="drawer-body" id="drawer-body"></div>
-    <div class="drawer-actions" id="drawer-actions"></div>
+<!-- ── Full Modal ── -->
+<button class="modal-nav prev" id="nav-prev" onclick="navPhoto(-1)" title="← Previous">&#8592;</button>
+<button class="modal-nav next" id="nav-next" onclick="navPhoto(1)"  title="Next →">&#8594;</button>
+
+<div class="modal-overlay" id="modal" onclick="closeModalOutside(event)">
+    <div class="modal" id="modal-inner">
+        <div class="modal-image-container">
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+            <img class="modal-image" id="modal-image" src="" alt="" onclick="zoomPhoto()">
+            <div class="modal-flash green" id="modal-flash-green"></div>
+            <div class="modal-flash red"   id="modal-flash-red"></div>
+            <div class="kbd-hint"><kbd>↑</kbd> Keep &nbsp; <kbd>↓</kbd> Skip &nbsp; <kbd>←</kbd><kbd>→</kbd> Navigate &nbsp; <kbd>Esc</kbd> Close</div>
+        </div>
+
+        <div class="modal-content">
+            <div class="modal-header">
+                <div style="flex:1">
+                    <div class="modal-title" id="modal-title"></div>
+                    <div class="modal-subtitle" id="modal-subtitle"></div>
+                </div>
+                <div class="modal-score" id="modal-score"></div>
+            </div>
+
+            <!-- Local scores -->
+            <div id="modal-scores" class="scores-grid"></div>
+
+            <!-- Claude analysis (if available) -->
+            <div id="modal-analysis"></div>
+
+            <div class="file-info" id="modal-fileinfo"></div>
+        </div>
+
+        <div class="modal-actions" id="modal-actions"></div>
+    </div>
 </div>
 
-<!-- Zoom -->
-<div class="zoom-overlay" id="zoom" onclick="closeZoom()">
-    <img id="zoom-img" src="" alt="">
+<!-- Fullscreen zoom -->
+<div class="zoom-overlay" id="zoom">
+    <button class="zoom-close-btn" onclick="closeZoom()">&times;</button>
+    <button class="zoom-nav prev" id="zoom-prev" onclick="zoomNav(-1)">&#8592;</button>
+    <button class="zoom-nav next" id="zoom-next" onclick="zoomNav(1)">&#8594;</button>
+    <img id="zoom-img" src="" alt="" onclick="closeZoom()">
+    <div class="zoom-flash green" id="zoom-flash-green"></div>
+    <div class="zoom-flash red"   id="zoom-flash-red"></div>
+    <div class="zoom-dir-label keep" id="zoom-label-keep">KEEP ↑</div>
+    <div class="zoom-dir-label skip" id="zoom-label-skip">SKIP ↓</div>
+    <div class="zoom-bar">
+        <div class="zoom-bar-title" id="zoom-bar-title"></div>
+        <div class="zoom-bar-score" id="zoom-bar-score"></div>
+        <button class="zoom-skip-btn"    onclick="zoomAction('reject')">Skip ↓</button>
+        <button class="zoom-approve-btn" onclick="zoomAction('approve')">Keep ↑</button>
+        <div class="zoom-bar-hints">← → Navigate &nbsp; Esc Close</div>
+    </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
-let allPhotos = [];
+let allPhotos     = [];
 let currentFilter = 'all';
 let currentSearch = '';
+let currentSort   = 'score'; // 'score' | 'filename'
 let currentPhotoId = null;
+let currentListIds = [];
+let currentPage   = 1;
+const PAGE_SIZE   = 40;
+
+// Cached full analysis (fetched once from /api/photos)
+let fullPhotosCache = null;
 
 async function loadPhotos() {
     const res = await fetch('/api/browse');
     allPhotos = await res.json();
-    const analyzed = allPhotos.filter(p => p.has_analysis).length;
+    const analyzed   = allPhotos.filter(p => p.has_analysis).length;
+    const clientPicks = allPhotos.filter(p => p.client_pick).length;
     document.getElementById('header-sub').textContent =
-        `${allPhotos.length} total photos  •  ${analyzed} analyzed  •  ${allPhotos.length - analyzed} not yet analyzed`;
+        `${allPhotos.length} total  •  ${analyzed} analyzed  •  ${allPhotos.length - analyzed} unanalyzed`;
+    const banner = document.getElementById('info-banner');
+    const unanalyzed = allPhotos.length - analyzed;
+    banner.innerHTML = unanalyzed > 0
+        ? `<strong>Desaturated photos haven't been sent to Claude yet.</strong> Click any to get a full AI analysis on the spot.${clientPicks ? `  •  <strong style="color:#f43f5e">♥ ${clientPicks} client picks</strong>` : ''}`
+        : `All ${analyzed} photos have been analyzed by Claude.${clientPicks ? `  •  <strong style="color:#f43f5e">♥ ${clientPicks} client picks</strong>` : ''}`;
     render();
 }
 
+// Fetch full catalog once (for Claude analysis data)
+async function getFullPhotos() {
+    if (!fullPhotosCache) {
+        const res = await fetch('/api/photos');
+        fullPhotosCache = await res.json();
+    }
+    return fullPhotosCache;
+}
+
 function filtered() {
-    let list = allPhotos;
+    let list = [...allPhotos];
     if (currentFilter === 'not-analyzed') list = list.filter(p => !p.has_analysis);
     if (currentFilter === 'analyzed')     list = list.filter(p => p.has_analysis);
     if (currentFilter === 'approved')     list = list.filter(p => p.approved === true);
+    if (currentFilter === 'client-pick')  list = list.filter(p => p.client_pick);
     if (currentSearch) {
         const q = currentSearch.toLowerCase();
         list = list.filter(p => p.filename.toLowerCase().includes(q));
     }
+    if (currentSort === 'filename') {
+        list.sort((a, b) => a.filename.localeCompare(b.filename, undefined, { numeric: true }));
+    }
+    // 'score' order is already sorted server-side (overall_score desc)
     return list;
 }
 
 function render() {
     const grid = document.getElementById('grid');
     const list = filtered();
+    currentListIds = list.map(p => p.id);
 
     if (!list.length) {
         grid.innerHTML = '<div class="empty" style="grid-column:1/-1">No photos match this filter.</div>';
+        renderPager(0, 0);
         return;
     }
 
-    grid.innerHTML = list.map(p => {
+    const totalPages = Math.ceil(list.length / PAGE_SIZE);
+    if (currentPage > totalPages) currentPage = 1;
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const page  = list.slice(start, start + PAGE_SIZE);
+
+    grid.innerHTML = page.map(p => {
         const s = p.overall_score;
         const cls = s >= 70 ? 'high' : s >= 45 ? 'medium' : 'low';
-        const rejClass = p.approved === false ? 'is-rejected' : '';
+        const rejClass     = p.approved === false ? 'is-rejected' : '';
+        const analyzedClass = p.has_analysis ? '' : 'not-analyzed';
 
         let statusHTML = '';
-        if (p.approved === true)   statusHTML = '<div class="tile-status approved">Added</div>';
+        if (p.client_pick)             statusHTML = '<div class="tile-status client-pick">♥ Client Pick</div>';
+        else if (p.approved === true)  statusHTML = '<div class="tile-status approved">Added</div>';
         else if (p.approved === false) statusHTML = '<div class="tile-status rejected">Skipped</div>';
-        else if (p.has_analysis)   statusHTML = '<div class="tile-status analyzed">Analyzed</div>';
+        else if (p.has_analysis)       statusHTML = '<div class="tile-status analyzed">✦ Analyzed</div>';
+
+        const claudeScore = p.claude_score
+            ? `<div class="tile-claude-score">Claude ${p.claude_score}/10</div>` : '';
 
         return `
-            <div class="photo-tile ${rejClass}" onclick="openDrawer(${p.id})">
-                <img src="/photo/${p.id}" alt="${p.filename}" loading="lazy">
+            <div class="photo-tile ${rejClass} ${analyzedClass}" onclick="openModal(${p.id})">
+                <img src="/thumb/${p.id}" alt="${p.filename}" loading="lazy">
                 <div class="tile-overlay">
                     <span class="tile-score ${cls}">${Math.round(s)}</span>
                     <span class="tile-filename">${p.filename}</span>
                 </div>
-                ${statusHTML}
+                ${statusHTML}${claudeScore}
             </div>
         `;
     }).join('');
+
+    renderPager(list.length, totalPages);
+    window.scrollTo(0, 0);
 }
+
+function renderPager(total, totalPages) {
+    let el = document.getElementById('pager');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'pager';
+        el.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:12px;padding:28px 0 48px;';
+        document.getElementById('grid').after(el);
+    }
+    if (totalPages <= 1) { el.innerHTML = ''; return; }
+    el.innerHTML = `
+        <button onclick="goPage(${currentPage-1})" ${currentPage===1?'disabled':''}
+            style="padding:8px 18px;border:1px solid var(--border);border-radius:8px;background:none;color:var(--text);cursor:pointer;font-size:13px">← Prev</button>
+        <span style="font-size:13px;color:var(--text-muted)">Page ${currentPage} of ${totalPages} · ${total} photos</span>
+        <button onclick="goPage(${currentPage+1})" ${currentPage===totalPages?'disabled':''}
+            style="padding:8px 18px;border:1px solid var(--border);border-radius:8px;background:none;color:var(--text);cursor:pointer;font-size:13px">Next →</button>
+    `;
+}
+
+function goPage(n) { currentPage = n; render(); }
 
 function setFilter(f, btn) {
-    currentFilter = f;
+    currentFilter = f; currentPage = 1;
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
+    document.getElementById('sort-btn').classList.remove('active'); // keep sort btn separate
     render();
 }
 
-function setSearch(val) {
-    currentSearch = val;
+function setSearch(val) { currentSearch = val; currentPage = 1; render(); }
+
+function toggleSort(btn) {
+    currentSort = currentSort === 'score' ? 'filename' : 'score';
+    btn.textContent = currentSort === 'filename' ? 'Sort: Filename A–Z' : 'Sort: Best First';
+    currentPage = 1;
     render();
 }
 
-// ---- Drawer ----
-function openDrawer(id) {
+// ── Modal ────────────────────────────────────────────────────────────────────
+async function openModal(id) {
     const photo = allPhotos.find(p => p.id === id);
     if (!photo) return;
     currentPhotoId = id;
 
-    document.getElementById('drawer-img').src = `/photo/${id}`;
+    document.getElementById('modal-image').src = `/photo/${id}`;
+    document.getElementById('modal-title').textContent = photo.filename;
+    document.getElementById('modal-subtitle').textContent = `${photo.width}×${photo.height}  ·  ${photo.megapixels}MP  ·  ${photo.file_size_mb}MB`;
+    document.getElementById('modal-score').textContent = photo.claude_score ? `${photo.claude_score}/10` : '';
+    document.getElementById('modal-fileinfo').textContent = photo.filename;
 
+    // Local scores
     const scores = photo.scores || {};
     const scoreItems = [
         { label: 'Sharpness',   val: scores.sharpness   || 0 },
@@ -423,157 +654,254 @@ function openDrawer(id) {
         { label: 'Resolution',  val: scores.resolution  || 0 },
         { label: 'Composition', val: scores.composition || 0 },
     ];
-
-    const scoresHTML = `
-        <div class="scores-grid">
-            ${scoreItems.map(s => `
-                <div class="score-item">
-                    <div class="score-label">${s.label}</div>
-                    <div class="score-bar-wrap">
-                        <div class="score-bar">
-                            <div class="score-bar-fill" style="width:${s.val}%"></div>
-                        </div>
-                        <div class="score-value">${Math.round(s.val)}</div>
-                    </div>
-                </div>
-            `).join('')}
+    document.getElementById('modal-scores').innerHTML = scoreItems.map(s => `
+        <div class="score-item">
+            <div class="score-label">${s.label}</div>
+            <div class="score-bar-wrap">
+                <div class="score-bar"><div class="score-bar-fill" style="width:${s.val}%"></div></div>
+                <div class="score-value">${Math.round(s.val)}</div>
+            </div>
         </div>
-    `;
+    `).join('');
 
-    let analysisHTML = '';
+    // Claude analysis
+    const analysisEl = document.getElementById('modal-analysis');
     if (photo.has_analysis) {
-        // We don't have full analysis here — fetch it
-        analysisHTML = `<div class="analysis-box" id="analysis-content"><p style="color:var(--text-muted)">Loading analysis...</p></div>`;
-        fetchAnalysis(id);
+        analysisEl.innerHTML = `<div style="font-size:12px;color:var(--text-dim);padding:6px 0">Loading Claude analysis…</div>`;
+        loadAnalysis(id);
     } else {
-        analysisHTML = `
-            <div class="analysis-box">
-                <h4>Not yet analyzed</h4>
-                <p>This photo wasn't in the top ${100}% scored by the local algorithm.
-                Click "Send to Claude" below to get a full AI analysis and add it to your review pool.</p>
+        analysisEl.innerHTML = `
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px">
+                <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin-bottom:4px">Not Yet Analyzed</div>
+                <div style="font-size:13px;color:var(--text-muted)">Click "Send to Claude" below to get a full AI analysis.</div>
             </div>
         `;
     }
 
-    document.getElementById('drawer-body').innerHTML = `
-        <div class="drawer-filename">${photo.filename}  •  ${photo.width}×${photo.height}  •  ${photo.megapixels}MP</div>
-        ${scoresHTML}
-        ${analysisHTML}
-    `;
-
-    renderDrawerActions(photo);
-
-    document.getElementById('drawer-overlay').classList.add('active');
-    document.getElementById('drawer').classList.add('open');
+    renderModalActions(photo);
+    updateNavButtons();
+    document.getElementById('modal').classList.add('active');
+    document.body.style.overflow = 'hidden';
 }
 
-async function fetchAnalysis(id) {
-    // Pull full photo data from the catalog via groups endpoint (it has full analysis)
+async function loadAnalysis(id) {
     try {
-        const res = await fetch('/api/photos');
-        const photos = await res.json();
+        const photos = await getFullPhotos();
         const p = photos.find(x => x.id === id);
-        if (!p) return;
-        const a = p.claude_analysis || {};
-        document.getElementById('analysis-content').innerHTML = `
-            <h4>Claude's Analysis</h4>
-            <div class="score-display">${a.score || '?'}/10</div>
-            <p><strong>${a.title || ''}</strong></p>
-            <p style="margin-top:8px">${a.summary || ''}</p>
-            ${a.composition ? `<p style="margin-top:8px;color:var(--text-muted)">${a.composition}</p>` : ''}
+        const a = p ? (p.claude_analysis || {}) : {};
+        const r = a.score_reasoning || {};
+        const tips = a.editing_tips || [];
+
+        document.getElementById('modal-score').textContent = a.score ? `${a.score}/10` : '';
+        document.getElementById('modal-title').textContent  = a.title || document.getElementById('modal-title').textContent;
+
+        const detailHTML = `
+            ${a.composition ? `<div class="analysis-section"><div class="analysis-label">Composition</div><div class="analysis-text">${escHtml(a.composition)}</div></div>` : ''}
+            ${a.technical ? `<div class="analysis-section"><div class="analysis-label">Technical Quality</div><div class="analysis-text">${escHtml(a.technical)}</div></div>` : ''}
+            ${(a.mood || a.story) ? `<div class="analysis-section"><div class="analysis-label">Mood &amp; Story</div><div class="analysis-text">${escHtml([a.mood,a.story].filter(Boolean).join(' '))}</div></div>` : ''}
+            ${(r.strengths || r.weaknesses) ? `
+                <div class="analysis-section">
+                    <div class="analysis-label">Score Breakdown</div>
+                    ${r.strengths  ? `<div style="background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.18);border-radius:7px;padding:8px 10px;margin-top:6px"><div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;font-weight:700;color:var(--green);margin-bottom:3px">What Works</div><div style="font-size:11px;color:var(--text-muted)">${escHtml(r.strengths)}</div></div>` : ''}
+                    ${r.weaknesses ? `<div style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.16);border-radius:7px;padding:8px 10px;margin-top:6px"><div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;font-weight:700;color:var(--red);margin-bottom:3px">What's Holding It Back</div><div style="font-size:11px;color:var(--text-muted)">${escHtml(r.weaknesses)}</div></div>` : ''}
+                </div>
+            ` : ''}
+            ${tips.length ? `<div class="analysis-section"><div class="analysis-label">Editing Tips</div>${tips.map(t=>`<div style="font-size:11px;padding:5px 9px;background:var(--accent-dim);border:1px solid var(--accent-border);border-radius:6px;margin-top:4px;color:var(--text-muted)"><span style="color:var(--accent)">✦</span> ${escHtml(t)}</div>`).join('')}</div>` : ''}
         `;
-    } catch {}
+
+        document.getElementById('modal-analysis').innerHTML = `
+            ${a.summary ? `<div class="analysis-section"><div class="analysis-label">Caption</div><div class="analysis-text">${escHtml(a.summary)}</div></div>` : ''}
+            <button onclick="toggleDetails(this)" style="margin:8px 0 4px;padding:5px 13px;background:transparent;border:1px solid var(--border);border-radius:20px;color:var(--text-dim);font-size:12px;cursor:pointer;font-family:inherit;transition:all 0.18s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='';this.style.color=''">Show Detailed Summary ▼</button>
+            <div id="analysis-details" style="display:none">${detailHTML}</div>
+        `;
+    } catch (e) {
+        document.getElementById('modal-analysis').innerHTML = '';
+    }
 }
 
-function renderDrawerActions(photo) {
-    const el = document.getElementById('drawer-actions');
+function toggleDetails(btn) {
+    const el = document.getElementById('analysis-details');
+    const visible = el.style.display !== 'none';
+    el.style.display = visible ? 'none' : 'block';
+    btn.textContent = visible ? 'Show Detailed Summary ▼' : 'Hide Detailed Summary ▲';
+}
+
+function renderModalActions(photo) {
+    const el = document.getElementById('modal-actions');
     if (!photo.has_analysis) {
         el.innerHTML = `
-            <button class="btn-secondary" onclick="closeDrawer()">Close</button>
-            <button class="btn-analyze" id="analyze-btn" onclick="sendToClaude(${photo.id})">
-                Send to Claude
-            </button>
+            <button class="btn-undo-m" onclick="closeModal()">Close</button>
+            <button class="btn-claude-m" id="analyze-btn-m" onclick="sendToClaude(${photo.id})">✦ Send to Claude</button>
         `;
     } else if (photo.approved === true) {
         el.innerHTML = `
-            <button class="btn-secondary" onclick="doApproval(${photo.id},'reset')">Undo Approval</button>
-            <button class="btn-secondary" style="color:var(--red);border-color:var(--red)" onclick="doApproval(${photo.id},'reject')">Remove</button>
+            <button class="btn-undo-m" onclick="doApproval(${photo.id},'reset')">Undo Approval</button>
+            <button class="btn-reject-m" onclick="doApproval(${photo.id},'reject')">Remove</button>
         `;
     } else if (photo.approved === false) {
         el.innerHTML = `
-            <button class="btn-secondary" onclick="doApproval(${photo.id},'reset')">Undo</button>
-            <button class="btn-approve" onclick="doApproval(${photo.id},'approve')">Add to Website</button>
+            <button class="btn-undo-m" onclick="doApproval(${photo.id},'reset')">Undo</button>
+            <button class="btn-approve-m" onclick="doApproval(${photo.id},'approve')">Add to Website</button>
         `;
     } else {
         el.innerHTML = `
-            <button class="btn-secondary" onclick="doApproval(${photo.id},'reject')">Skip</button>
-            <button class="btn-approve" onclick="doApproval(${photo.id},'approve')">Add to Website</button>
+            <button class="btn-reject-m" onclick="doApproval(${photo.id},'reject')">Skip ↓</button>
+            <button class="btn-approve-m" onclick="doApproval(${photo.id},'approve')">Add to Website ↑</button>
         `;
     }
 }
 
-async function sendToClaude(id) {
-    const btn = document.getElementById('analyze-btn');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="loading-spinner"></span>Analyzing...';
+function closeModal() {
+    document.getElementById('modal').classList.remove('active');
+    document.body.style.overflow = '';
+    currentPhotoId = null;
+}
+function closeModalOutside(e) {
+    if (e.target === document.getElementById('modal')) closeModal();
+}
 
-    const res = await fetch(`/api/photos/${id}/analyze`, { method: 'POST' });
-    const data = await res.json();
+function navPhoto(dir) {
+    if (!currentListIds.length) return;
+    const idx = currentListIds.indexOf(currentPhotoId);
+    if (idx === -1) return;
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= currentListIds.length) return;
+    openModal(currentListIds[newIdx]);
+}
 
-    if (data.error) {
-        showToast('Error: ' + data.error, 'error');
-        btn.disabled = false;
-        btn.textContent = 'Send to Claude';
-        return;
-    }
+function updateNavButtons() {
+    const idx = currentListIds.indexOf(currentPhotoId);
+    document.getElementById('nav-prev').disabled = idx <= 0;
+    document.getElementById('nav-next').disabled = idx >= currentListIds.length - 1;
+}
 
-    // Update local state
-    const photo = allPhotos.find(p => p.id === id);
-    if (photo) photo.has_analysis = true;
-
-    showToast('Analysis complete! Photo added to review pool.', 'success');
-
-    // Refresh drawer
-    openDrawer(id);
-    render();
+function modalFlash(color) {
+    const el = document.getElementById(`modal-flash-${color}`);
+    el.classList.remove('show');
+    void el.offsetWidth;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 350);
 }
 
 async function doApproval(id, action) {
     await fetch(`/api/photos/${id}/${action}`, { method: 'POST' });
     const photo = allPhotos.find(p => p.id === id);
-    if (photo) {
-        photo.approved = action === 'approve' ? true : action === 'reject' ? false : null;
+    if (photo) photo.approved = action === 'approve' ? true : action === 'reject' ? false : null;
+
+    if (action === 'approve') { modalFlash('green'); showToast('Added to website!', 'success'); }
+    else if (action === 'reject') { modalFlash('red'); showToast('Skipped', ''); }
+    else showToast('Reset', '');
+
+    renderModalActions(photo);
+    render(); // update tile in grid
+}
+
+async function sendToClaude(id) {
+    const btn = document.getElementById('analyze-btn-m');
+    if (btn) { btn.disabled = true; btn.textContent = '✦ Analyzing…'; }
+    showToast('Sending to Claude…', '');
+
+    const res  = await fetch(`/api/photos/${id}/analyze`, { method: 'POST' });
+    const data = await res.json();
+
+    if (data.error) {
+        showToast('Analysis failed: ' + data.error, 'error');
+        if (btn) { btn.disabled = false; btn.textContent = '✦ Send to Claude'; }
+        return;
     }
-    renderDrawerActions(photo);
+
+    const photo = allPhotos.find(p => p.id === id);
+    if (photo) { photo.has_analysis = true; photo.claude_score = data.analysis?.score; }
+    fullPhotosCache = null; // invalidate cache
+
+    showToast('Analysis complete!', 'success');
+    openModal(id); // reopen with full data
     render();
-    showToast(action === 'approve' ? 'Added to website!' : 'Done', action === 'approve' ? 'success' : '');
 }
 
-function closeDrawer() {
-    document.getElementById('drawer-overlay').classList.remove('active');
-    document.getElementById('drawer').classList.remove('open');
-    currentPhotoId = null;
+let zoomPhotoId = null;
+
+function zoomPhoto() {
+    if (!currentPhotoId) return;
+    openZoom(currentPhotoId);
 }
 
-function zoomDrawer() {
-    const src = document.getElementById('drawer-img').src;
-    document.getElementById('zoom-img').src = src;
+function openZoom(id) {
+    const photo = allPhotos.find(p => p.id === id);
+    if (!photo) return;
+    zoomPhotoId = id;
+    document.getElementById('zoom-img').src = `/photo/${id}`;
+    document.getElementById('zoom-bar-title').textContent = photo.filename;
+    document.getElementById('zoom-bar-score').textContent = photo.claude_score ? `${photo.claude_score}/10` : '';
+    const idx = currentListIds.indexOf(id);
+    document.getElementById('zoom-prev').disabled = idx <= 0;
+    document.getElementById('zoom-next').disabled = idx >= currentListIds.length - 1;
     document.getElementById('zoom').classList.add('active');
+    document.body.style.overflow = 'hidden';
 }
 
 function closeZoom() {
     document.getElementById('zoom').classList.remove('active');
+    document.body.style.overflow = '';
+    zoomPhotoId = null;
 }
 
+function zoomNav(dir) {
+    if (!zoomPhotoId) return;
+    const idx = currentListIds.indexOf(zoomPhotoId);
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= currentListIds.length) return;
+    openZoom(currentListIds[newIdx]);
+}
+
+async function zoomAction(action) {
+    if (!zoomPhotoId) return;
+    await doApproval(zoomPhotoId, action);
+    // Flash and advance
+    const color = action === 'approve' ? 'green' : 'red';
+    const flashEl = document.getElementById(`zoom-flash-${color}`);
+    const labelEl = document.getElementById(`zoom-label-${color === 'green' ? 'keep' : 'skip'}`);
+    flashEl.classList.remove('show'); labelEl.classList.remove('show');
+    void flashEl.offsetWidth;
+    flashEl.classList.add('show'); labelEl.classList.add('show');
+    setTimeout(() => { flashEl.classList.remove('show'); labelEl.classList.remove('show'); }, 350);
+    // Advance to next photo
+    setTimeout(() => zoomNav(1), 120);
+}
+
+// ── Keyboard ─────────────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeZoom(); closeDrawer(); }
+    const zoomOpen  = document.getElementById('zoom').classList.contains('active');
+    const modalOpen = document.getElementById('modal').classList.contains('active');
+
+    if (zoomOpen) {
+        e.preventDefault();
+        if (e.key === 'Escape')     closeZoom();
+        if (e.key === 'ArrowLeft')  zoomNav(-1);
+        if (e.key === 'ArrowRight') zoomNav(1);
+        if (e.key === 'ArrowUp')    zoomAction('approve');
+        if (e.key === 'ArrowDown')  zoomAction('reject');
+        return;
+    }
+    if (!modalOpen) return;
+
+    if (e.key === 'Escape')     { e.preventDefault(); closeModal(); }
+    if (e.key === 'ArrowLeft')  { e.preventDefault(); navPhoto(-1); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); navPhoto(1); }
+    if (e.key === 'ArrowUp')    { e.preventDefault(); doApproval(currentPhotoId, 'approve'); }
+    if (e.key === 'ArrowDown')  { e.preventDefault(); doApproval(currentPhotoId, 'reject'); }
 });
 
 function showToast(msg, type) {
     const t = document.getElementById('toast');
     t.textContent = msg;
     t.className = `toast show ${type || ''}`;
-    setTimeout(() => t.classList.remove('show'), 3000);
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+function escHtml(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 loadPhotos();

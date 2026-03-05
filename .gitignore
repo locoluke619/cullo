@@ -5,7 +5,7 @@
 venv/
 
 # Photo data (large files)
-data/catalog.json
+data/
 docs/photos/
 
 # Python cache
@@ -15,5 +15,8 @@ __pycache__/
 # macOS
 .DS_Store
 
-# Original photos (too large for git)
-micheals_pictures/
+# Photos (too large for git — drop them in the photos/ folder locally)
+photos/
+
+# RAW export folder (local only)
+exports/

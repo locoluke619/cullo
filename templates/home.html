@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cullo — AI Photo Curation Studio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg:           #101012;
+            --surface:      #1A1A1D;
+            --surface2:     #202023;
+            --border:       rgba(161,161,170,0.15);
+            --text:         #FFFFFF;
+            --text-muted:   #E2E8F0;
+            --text-dim:     #A1A1AA;
+            --accent:       #A78BFA;
+            --accent-dim:   rgba(167,139,250,0.1);
+            --accent-border:rgba(167,139,250,0.3);
+            --green:        #22C55E;
+            --red:          #EF4444;
+            --yellow:       #F59E0B;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ── Centered wrapper ── */
+        .page-center {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 32px;
+        }
+
+        /* ── Hero ── */
+        .hero {
+            position: relative;
+            padding: 80px 32px 72px;
+            text-align: center;
+            overflow: hidden;
+        }
+        .hero::before {
+            content: '';
+            position: absolute; inset: 0;
+            background: radial-gradient(ellipse 70% 55% at 50% -10%, rgba(167,139,250,0.18) 0%, transparent 65%);
+            pointer-events: none;
+        }
+        .hero-logo {
+            height: 140px;
+            width: auto;
+            margin-bottom: 28px;
+            filter: drop-shadow(0 0 32px rgba(167,139,250,0.5));
+        }
+        .hero-tagline {
+            font-size: 16px;
+            color: var(--text-dim);
+            max-width: 440px;
+            margin: 0 auto 36px;
+            line-height: 1.7;
+            font-weight: 400;
+        }
+        .hero-cta {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        .btn-primary {
+            display: inline-flex; align-items: center; gap: 7px;
+            padding: 13px 26px;
+            background: var(--accent);
+            color: white;
+            border: none; border-radius: 10px;
+            font-size: 15px; font-weight: 700;
+            cursor: pointer; font-family: inherit;
+            text-decoration: none;
+            transition: filter 0.18s, transform 0.15s;
+        }
+        .btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
+        .btn-ghost {
+            display: inline-flex; align-items: center; gap: 7px;
+            padding: 13px 20px;
+            background: transparent;
+            color: var(--text-dim);
+            border: 1px solid var(--border); border-radius: 10px;
+            font-size: 14px; font-weight: 500;
+            cursor: pointer; font-family: inherit;
+            text-decoration: none;
+            transition: all 0.18s;
+        }
+        .btn-ghost:hover { border-color: var(--accent-border); color: var(--text); }
+
+        /* ── Stats ── */
+        .stats-wrap {
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            background: var(--surface);
+        }
+        .stats-row {
+            display: flex;
+            justify-content: center;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .stat {
+            flex: 1;
+            padding: 22px 0;
+            text-align: center;
+            border-right: 1px solid var(--border);
+        }
+        .stat:last-child { border-right: none; }
+        .stat-num {
+            font-size: 32px; font-weight: 800;
+            letter-spacing: -1.5px; line-height: 1;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            font-size: 11px; text-transform: uppercase;
+            letter-spacing: 0.8px; color: var(--text-dim); font-weight: 500;
+        }
+        .c-accent { color: var(--accent); }
+        .c-green  { color: var(--green); }
+        .c-yellow { color: var(--yellow); }
+        .c-dim    { color: var(--text-dim); }
+
+        /* ── Skeleton loader ── */
+        .skel {
+            display: inline-block;
+            width: 52px; height: 32px;
+            background: linear-gradient(90deg, var(--surface) 25%, var(--surface2) 50%, var(--surface) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.4s infinite;
+            border-radius: 4px;
+            vertical-align: middle;
+        }
+        @keyframes shimmer { to { background-position: -200% 0; } }
+
+        /* ── Pipeline ── */
+        .section {
+            padding: 56px 32px;
+            border-bottom: 1px solid var(--border);
+        }
+        .section-inner { max-width: 900px; margin: 0 auto; }
+        .section-label {
+            font-size: 11px; text-transform: uppercase;
+            letter-spacing: 1.5px; color: var(--text-dim);
+            font-weight: 600; margin-bottom: 24px;
+            text-align: center;
+        }
+
+        .pipeline-steps {
+            display: flex;
+            gap: 0;
+        }
+        .step {
+            flex: 1;
+            padding: 18px 16px 16px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            position: relative;
+        }
+        .step + .step { margin-left: -1px; }
+        .step:first-child { border-radius: 10px 0 0 10px; }
+        .step:last-child  { border-radius: 0 10px 10px 0; }
+        .step.done    { background: rgba(34,197,94,0.05);  border-color: rgba(34,197,94,0.22); }
+        .step.active  { background: var(--accent-dim);     border-color: var(--accent-border); }
+        .step.waiting { opacity: 0.45; }
+        .step-badge {
+            font-size: 10px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.8px;
+            color: var(--text-dim); margin-bottom: 6px;
+            display: flex; align-items: center; gap: 5px;
+        }
+        .step.done   .step-badge { color: var(--green); }
+        .step.active .step-badge { color: var(--accent); }
+        .step-name {
+            font-size: 12px; font-weight: 700;
+            color: var(--text); margin-bottom: 4px;
+        }
+        .step-detail {
+            font-size: 10px; color: var(--text-dim); line-height: 1.5;
+        }
+
+        /* ── Features grid ── */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+        @media (max-width: 860px) { .features-grid { grid-template-columns: repeat(2, 1fr); } }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px;
+            text-decoration: none;
+            display: block;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .card:hover {
+            border-color: var(--accent-border);
+            background: var(--surface2);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 28px rgba(0,0,0,0.45);
+        }
+        .card-icon { font-size: 20px; margin-bottom: 10px; display: block; }
+        .card-name {
+            font-size: 13px; font-weight: 700;
+            color: var(--text); margin-bottom: 5px;
+        }
+        .card-desc {
+            font-size: 11px; color: var(--text-dim); line-height: 1.6;
+        }
+        .card-tag {
+            display: inline-block;
+            font-size: 10px; font-weight: 600;
+            padding: 2px 8px; border-radius: 10px;
+            margin-top: 10px;
+        }
+        .tag-accent { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-border); }
+        .tag-green  { background: rgba(34,197,94,0.08); color: var(--green); border: 1px solid rgba(34,197,94,0.22); }
+
+        /* ── Toast ── */
+        #toast {
+            position: fixed; bottom: 28px; left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: var(--surface); color: var(--text);
+            padding: 10px 20px; border-radius: 9px;
+            font-size: 13px; border: 1px solid var(--border);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            transition: transform 0.3s; z-index: 2000;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+
+<!-- ── Hero ── -->
+<div class="hero">
+    <img src="/logos/main.png" alt="Cullo" class="hero-logo">
+    <p class="hero-tagline">AI-powered photo curation. Let Claude analyze every frame, then review, cull, and export your best work.</p>
+    <div class="hero-cta">
+        <a href="/dashboard" class="btn-primary">Start Reviewing →</a>
+        <a href="/browse" class="btn-ghost">Browse All Photos</a>
+        <a href="/website-design" class="btn-ghost">Design Website ✦</a>
+    </div>
+</div>
+
+<!-- ── Stats bar ── -->
+<div class="stats-wrap">
+    <div class="stats-row">
+        <div class="stat"><div class="stat-num c-dim" id="s-total"><span class="skel"></span></div><div class="stat-label">Photos Scanned</div></div>
+        <div class="stat"><div class="stat-num c-accent" id="s-analyzed"><span class="skel"></span></div><div class="stat-label">Analyzed by Claude</div></div>
+        <div class="stat"><div class="stat-num c-green" id="s-approved"><span class="skel"></span></div><div class="stat-label">Approved</div></div>
+        <div class="stat"><div class="stat-num c-yellow" id="s-pending"><span class="skel"></span></div><div class="stat-label">Pending Review</div></div>
+        <div class="stat"><div class="stat-num c-dim" id="s-skipped"><span class="skel"></span></div><div class="stat-label">Skipped</div></div>
+    </div>
+</div>
+
+<!-- ── Pipeline ── -->
+<div class="section">
+    <div class="section-inner">
+        <div class="section-label">Your Pipeline</div>
+        <div class="pipeline-steps">
+            <div class="step waiting" id="step-1">
+                <div class="step-badge" id="step-1-badge"><span id="step-1-icon">1</span> Step 1</div>
+                <div class="step-name">Scan &amp; Score</div>
+                <div class="step-detail" id="step-1-detail">Read all photos, compute local quality scores</div>
+            </div>
+            <div class="step waiting" id="step-2">
+                <div class="step-badge" id="step-2-badge"><span id="step-2-icon">2</span> Step 2</div>
+                <div class="step-name">Claude Analysis</div>
+                <div class="step-detail" id="step-2-detail">AI scores each photo for composition, sharpness, story</div>
+            </div>
+            <div class="step waiting" id="step-3">
+                <div class="step-badge" id="step-3-badge"><span id="step-3-icon">3</span> Step 3</div>
+                <div class="step-name">Group Similar</div>
+                <div class="step-detail" id="step-3-detail">Cluster burst shots so you compare the best</div>
+            </div>
+            <div class="step waiting" id="step-4">
+                <div class="step-badge" id="step-4-badge"><span id="step-4-icon">4</span> Step 4</div>
+                <div class="step-name">Review &amp; Cull</div>
+                <div class="step-detail" id="step-4-detail">Approve keepers, skip rejects, send to client</div>
+            </div>
+            <div class="step waiting" id="step-5">
+                <div class="step-badge" id="step-5-badge"><span id="step-5-icon">5</span> Step 5</div>
+                <div class="step-name">Export</div>
+                <div class="step-detail" id="step-5-detail">Build portfolio website, client proof, or RAW exports</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Features ── -->
+<div class="section" style="border-bottom:none;padding-bottom:72px">
+    <div class="section-inner">
+        <div class="section-label">What You Can Do</div>
+        <div class="features-grid">
+            <a href="/dashboard" class="card">
+                <span class="card-icon">🎯</span>
+                <div class="card-name">Review Dashboard</div>
+                <div class="card-desc">Top photos ranked by Claude's score. Full AI analysis on click.</div>
+                <div class="card-tag tag-accent">Start here</div>
+            </a>
+            <a href="/dashboard" class="card">
+                <span class="card-icon">⚡</span>
+                <div class="card-name">Quick Cull</div>
+                <div class="card-desc">Full-screen culling — ↑ keep, ↓ skip. Hundreds of photos in minutes.</div>
+                <div class="card-tag tag-accent">↑ Keep · ↓ Skip</div>
+            </a>
+            <a href="/dashboard?tab=groups" class="card">
+                <span class="card-icon">🔍</span>
+                <div class="card-name">Compare Groups</div>
+                <div class="card-desc">Burst shots clustered together. Claude picks the definitive best shot.</div>
+                <div class="card-tag tag-accent">AI picks best</div>
+            </a>
+            <a href="/browse" class="card">
+                <span class="card-icon">🖼</span>
+                <div class="card-name">Browse All Photos</div>
+                <div class="card-desc">Full grid including unanalyzed shots. Analyze any photo on the spot.</div>
+                <div class="card-tag tag-green">All photos</div>
+            </a>
+            <a href="#" onclick="triggerExport(event)" class="card">
+                <span class="card-icon">♥</span>
+                <div class="card-name">Client Proof Gallery</div>
+                <div class="card-desc">Standalone HTML your client can heart and email their picks from.</div>
+                <div class="card-tag tag-green">Works offline</div>
+            </a>
+            <a href="/website-design" class="card">
+                <span class="card-icon">✦</span>
+                <div class="card-name">AI Website Design</div>
+                <div class="card-desc">Chat with Claude to design your portfolio. It builds the brief for you.</div>
+                <div class="card-tag tag-accent">Claude-powered</div>
+            </a>
+            <a href="#" onclick="triggerBuild(event)" class="card">
+                <span class="card-icon">🌐</span>
+                <div class="card-name">Build Website</div>
+                <div class="card-desc">One click generates a complete static portfolio ready to deploy.</div>
+                <div class="card-tag tag-green">Static HTML</div>
+            </a>
+            <a href="#" onclick="triggerRawExport(event)" class="card">
+                <span class="card-icon">📁</span>
+                <div class="card-name">Export RAW Files</div>
+                <div class="card-desc">Copies RAW counterparts of approved photos straight to Lightroom.</div>
+                <div class="card-tag tag-green">Lightroom ready</div>
+            </a>
+        </div>
+    </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+async function loadStats() {
+    try {
+        const res  = await fetch('/api/stats');
+        const data = await res.json();
+
+        const set = (id, val) => { document.getElementById(id).textContent = val; };
+        set('s-total',    data.total_photos);
+        set('s-analyzed', data.analyzed);
+        set('s-approved', data.approved);
+        set('s-pending',  data.pending);
+        set('s-skipped',  data.rejected);
+
+        const hasScan     = data.total_photos > 0;
+        const hasClaude   = data.analyzed > 0;
+        const hasGroups   = await checkGroups();
+        const hasApproved = data.approved > 0;
+
+        function setStep(n, state, detail) {
+            const el = document.getElementById(`step-${n}`);
+            el.className = `step ${state}`;
+            document.getElementById(`step-${n}-detail`).textContent = detail;
+            document.getElementById(`step-${n}-icon`).textContent = state === 'done' ? '✓' : n;
+        }
+
+        setStep(1, hasScan   ? 'done' : 'active',
+            hasScan ? `${data.total_photos} photos scanned` : 'Run Step 1 from the launch menu');
+        setStep(2, hasClaude ? 'done' : hasScan ? 'active' : 'waiting',
+            hasClaude ? `${data.analyzed} of ${data.total_photos} analyzed` : 'Run Step 2 to analyze with Claude');
+        setStep(3, hasGroups ? 'done' : hasClaude ? 'active' : 'waiting',
+            hasGroups ? 'Groups ready' : 'Run Step 2B to cluster similar shots');
+        setStep(4, hasApproved ? 'done' : hasClaude ? 'active' : 'waiting',
+            hasApproved ? `${data.approved} approved, ${data.pending} still pending` : 'Open Review Dashboard to start culling');
+        setStep(5, data.approved > 0 ? 'active' : 'waiting',
+            data.approved > 0 ? `${data.approved} photos ready to export` : 'Approve photos first');
+    } catch(e) {}
+}
+
+async function checkGroups() {
+    try {
+        const res = await fetch('/api/groups');
+        const data = await res.json();
+        return Array.isArray(data) && data.some(g => g.is_group && g.photo_ids.length > 1);
+    } catch { return false; }
+}
+
+async function triggerExport(e) {
+    e.preventDefault();
+    toast('Building client proof…');
+    const r = await (await fetch('/api/export_client_proof', { method: 'POST' })).json();
+    toast(r.status === 'success' ? `Done! exports/client_proof.html (${r.size_mb} MB)` : r.message || 'Export failed', r.status === 'success');
+}
+
+async function triggerBuild(e) {
+    e.preventDefault();
+    toast('Building portfolio website…');
+    const r = await (await fetch('/api/build', { method: 'POST' })).json();
+    toast(r.status === 'success' ? 'Website built! Check the docs/ folder.' : 'Build failed — check terminal.', r.status === 'success');
+}
+
+async function triggerRawExport(e) {
+    e.preventDefault();
+    toast('Finding RAW files…');
+    const r = await (await fetch('/api/export_raws', { method: 'POST' })).json();
+    toast(r.status === 'success'
+        ? `Copied ${r.copied} RAW file${r.copied !== 1 ? 's' : ''} to exports/ready_to_edit/`
+        : r.message || 'Export failed', r.status === 'success');
+}
+
+function toast(msg, success) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.style.borderColor = success ? 'rgba(34,197,94,0.4)' : 'rgba(161,161,170,0.2)';
+    t.style.transform = 'translateX(-50%) translateY(0)';
+    clearTimeout(t._t);
+    t._t = setTimeout(() => { t.style.transform = 'translateX(-50%) translateY(80px)'; }, 4000);
+}
+
+loadStats();
+</script>
+</body>
+</html>

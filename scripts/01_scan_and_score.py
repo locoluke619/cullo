@@ -18,24 +18,83 @@ from pathlib import Path
 from PIL import Image, ImageFilter, ImageStat
 from tqdm import tqdm
 
+sys.path.insert(0, str(Path(__file__).parent))
+from utils import open_image, RAW_READABLE
+
+# Enable HEIC/HEIF support (iPhone photos) if available
+try:
+    from pillow_heif import register_heif_opener
+    register_heif_opener()
+    HEIC_SUPPORTED = True
+except ImportError:
+    HEIC_SUPPORTED = False
+
 # Add the scripts folder to the path so we can import config
 sys.path.insert(0, str(Path(__file__).parent))
 from config import *
 
 
 def find_all_photos(folder_path):
-    """Find every photo file in the folder (including subfolders)."""
+    """
+    Find every supported photo in the folder (including subfolders).
+
+    Deduplication rule: when a RAW file and a JPG share the same filename
+    stem (e.g. IMG_3583.CR2 + IMG_3583.JPG), only the JPG is included.
+    The RAW is preserved on disk for the "Export RAWs to Edit" feature.
+
+    RAW-only files (no JPG counterpart) are included and decoded via rawpy.
+    """
     folder = Path(folder_path)
-    photos = []
 
     if not folder.exists():
         print(f"\n  ERROR: Folder not found: {folder}")
-        print(f"  Check the PHOTOS_FOLDER path in your .env file.\n")
+        print(f"  Check the PHOTOS_FOLDER setting in your .env file.")
+        print(f"  Or drop your photos into the 'photos' folder inside Cullo.\n")
         sys.exit(1)
 
-    for file_path in sorted(folder.rglob("*")):
-        if file_path.suffix.lower() in SUPPORTED_FORMATS:
+    all_files = sorted(folder.rglob("*"))
+
+    # Build a set of (parent, lowercase stem) for every standard-format file
+    standard_keys = set()
+    for f in all_files:
+        if f.suffix.lower() in STANDARD_FORMATS:
+            standard_keys.add((f.parent, f.stem.lower()))
+
+    photos = []
+    raw_paired = 0      # RAW files skipped because a JPG counterpart exists
+    raw_solo = []       # RAW files included because no JPG counterpart
+
+    for file_path in all_files:
+        ext = file_path.suffix.lower()
+
+        if ext in STANDARD_FORMATS:
+            if ext in {".heic", ".heif"} and not HEIC_SUPPORTED:
+                continue
             photos.append(file_path)
+
+        elif ext in RAW_FORMATS:
+            key = (file_path.parent, file_path.stem.lower())
+            if key in standard_keys:
+                # JPG counterpart exists — skip the RAW here, export will find it
+                raw_paired += 1
+            else:
+                # RAW-only file — process it
+                raw_solo.append(file_path)
+                photos.append(file_path)
+
+    # Report
+    if raw_paired:
+        print(f"  ✓  {raw_paired} RAW+JPG pairs found — using JPGs for analysis, RAWs saved for export.")
+    if raw_solo:
+        exts = sorted({f.suffix.upper() for f in raw_solo})
+        if RAW_READABLE:
+            print(f"  ✓  {len(raw_solo)} RAW-only files ({', '.join(exts)}) — will process with rawpy.")
+        else:
+            print(f"  ⚠  {len(raw_solo)} RAW-only files found but rawpy is not installed.")
+            print(f"     Run:  pip install rawpy numpy  — then try again.")
+            photos = [p for p in photos if p not in raw_solo]
+    if raw_paired or raw_solo:
+        print()
 
     return photos
 
@@ -171,53 +230,57 @@ def score_photo(image_path):
     Returns a dictionary with individual scores and an overall score.
     """
     try:
-        with Image.open(image_path) as img:
-            # Resize for faster processing (scoring doesn't need full resolution)
-            max_dim = 1024
-            if max(img.size) > max_dim:
-                ratio = max_dim / max(img.size)
-                new_size = (int(img.width * ratio), int(img.height * ratio))
-                img_resized = img.resize(new_size, Image.LANCZOS)
-            else:
-                img_resized = img.copy()
+        # half_size=True is 2x faster and accurate enough for quality scoring
+        img = open_image(image_path, half_size=True)
 
-            # Get original dimensions for resolution scoring
-            original_width, original_height = img.size
+        # Resize for faster processing (scoring doesn't need full resolution)
+        max_dim = 1024
+        if max(img.size) > max_dim:
+            ratio = max_dim / max(img.size)
+            new_size = (int(img.width * ratio), int(img.height * ratio))
+            img_resized = img.resize(new_size, Image.LANCZOS)
+        else:
+            img_resized = img.copy()
 
-            scores = {
-                "sharpness": score_sharpness(img_resized),
-                "exposure": score_exposure(img_resized),
-                "contrast": score_contrast(img_resized),
-                "color": score_color_richness(img_resized),
-                "resolution": score_resolution(img),  # Use original size
-                "composition": score_composition(img_resized),
-            }
+        # For RAW files decoded at half_size, multiply dimensions ×2 for true MP
+        is_raw_file = Path(image_path).suffix.lower() in RAW_FORMATS
+        scale = 2 if is_raw_file else 1
+        original_width = img.width * scale
+        original_height = img.height * scale
 
-            # Weighted overall score
-            weights = {
-                "sharpness": 0.25,    # Most important — nobody wants blurry photos
-                "exposure": 0.20,     # Proper exposure matters a lot
-                "contrast": 0.15,     # Good contrast makes photos pop
-                "color": 0.15,        # Vibrant colors are appealing
-                "resolution": 0.10,   # Higher res is better but less critical
-                "composition": 0.15,  # Composition adds visual interest
-            }
+        scores = {
+            "sharpness": score_sharpness(img_resized),
+            "exposure": score_exposure(img_resized),
+            "contrast": score_contrast(img_resized),
+            "color": score_color_richness(img_resized),
+            "resolution": score_resolution(img),
+            "composition": score_composition(img_resized),
+        }
 
-            overall = sum(scores[k] * weights[k] for k in scores)
-            scores["overall"] = round(overall, 1)
+        weights = {
+            "sharpness": 0.25,
+            "exposure": 0.20,
+            "contrast": 0.15,
+            "color": 0.15,
+            "resolution": 0.10,
+            "composition": 0.15,
+        }
 
-            return {
-                "file": str(image_path),
-                "filename": image_path.name,
-                "width": original_width,
-                "height": original_height,
-                "megapixels": round((original_width * original_height) / 1_000_000, 1),
-                "file_size_mb": round(image_path.stat().st_size / (1024 * 1024), 1),
-                "scores": scores,
-                "overall_score": scores["overall"],
-                "approved": None,       # Will be set in the review app
-                "claude_analysis": None, # Will be filled by step 2
-            }
+        overall = sum(scores[k] * weights[k] for k in scores)
+        scores["overall"] = round(overall, 1)
+
+        return {
+            "file": str(image_path),
+            "filename": image_path.name,
+            "width": original_width,
+            "height": original_height,
+            "megapixels": round((original_width * original_height) / 1_000_000, 1),
+            "file_size_mb": round(image_path.stat().st_size / (1024 * 1024), 1),
+            "scores": scores,
+            "overall_score": scores["overall"],
+            "approved": None,
+            "claude_analysis": None,
+        }
 
     except Exception as e:
         return {
@@ -244,35 +307,64 @@ def main():
     print()
 
     if not photos:
-        print("  No supported photos found.")
-        print(f"  Supported formats: {', '.join(SUPPORTED_FORMATS)}")
+        print("  No photos found in that folder.")
+        print()
+        print("  Cullo supports: JPG, PNG, TIFF, WEBP" + (", HEIC (iPhone)" if HEIC_SUPPORTED else ""))
+        print("  RAW files (CR2, NEF, ARW, DNG…) need a JPG version — enable RAW+JPG on your camera.")
         print()
         sys.exit(1)
+
+    # Load any existing catalog so we can skip already-scored photos
+    CATALOG_FILE.parent.mkdir(exist_ok=True)
+    existing_catalog = []
+    if CATALOG_FILE.exists():
+        try:
+            with open(CATALOG_FILE) as f:
+                existing_catalog = json.load(f)
+        except Exception:
+            existing_catalog = []
+
+    already_scored = {p["file"]: p for p in existing_catalog if "error" not in p}
+    resuming = len(already_scored) > 0
+    new_photos = [p for p in photos if str(p) not in already_scored]
+
+    if resuming and new_photos:
+        print(f"  ↩  Resuming — {len(already_scored)} photos already scored, {len(new_photos)} new.")
+        print()
+    elif resuming and not new_photos:
+        print(f"  ✓  All {len(already_scored)} photos already scored. Re-sorting and updating ranks.")
+        print()
 
     # Score each photo
     print("  Scoring each photo on quality metrics...")
     print("  (sharpness, exposure, contrast, color, resolution, composition)")
     print()
 
-    catalog = []
+    catalog = list(already_scored.values())  # start with what we have
     errors = 0
+    SAVE_EVERY = 50  # save progress every N photos
 
-    for i, photo_path in enumerate(tqdm(photos, desc="  Scoring", unit="photo")):
+    to_score = new_photos if resuming else photos
+    for i, photo_path in enumerate(tqdm(to_score, desc="  Scoring", unit="photo")):
         result = score_photo(photo_path)
         if "error" in result:
             errors += 1
         catalog.append(result)
 
+        # Save progress periodically so interruptions don't lose work
+        if (i + 1) % SAVE_EVERY == 0:
+            with open(CATALOG_FILE, "w") as f:
+                json.dump(catalog, f, indent=2)
+
     # Sort by overall score (best first)
     catalog.sort(key=lambda x: x.get("overall_score", 0), reverse=True)
 
-    # Add rank and ID
+    # Re-assign rank and ID (stable sort: photos keep existing claude_analysis etc.)
     for i, photo in enumerate(catalog):
         photo["id"] = i
         photo["rank"] = i + 1
 
-    # Save catalog
-    CATALOG_FILE.parent.mkdir(exist_ok=True)
+    # Save final catalog
     with open(CATALOG_FILE, "w") as f:
         json.dump(catalog, f, indent=2)
 

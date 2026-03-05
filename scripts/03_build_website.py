@@ -58,8 +58,155 @@ def optimize_photo(source_path, dest_folder, max_full=1920, max_thumb=600):
     return full_name, thumb_name
 
 
-def generate_html(photos_data, site_title, site_author):
+def load_design_brief():
+    """Load the design brief saved by the AI Website Design Consultant."""
+    brief_path = DATA_DIR / "design_brief.json"
+    if brief_path.exists():
+        try:
+            with open(brief_path) as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+
+def resolve_brief_styles(brief):
+    """
+    Translate the free-text design brief into concrete CSS/layout values.
+    Returns a dict of resolved design tokens.
+    """
+    style_raw    = (brief.get("style", "") or "").lower()
+    color_raw    = (brief.get("primary_color", "") or "").lower()
+    accent_raw   = (brief.get("accent_color", "") or "").lower()
+    typo_raw     = (brief.get("typography", "") or "").lower()
+    layout_raw   = (brief.get("layout", "") or "").lower()
+    hero_mood    = brief.get("hero_mood", "") or ""
+    color_desc   = (brief.get("color_palette_description", "") or "").lower()
+
+    # ── Background / surface ──────────────────────────────────────────────
+    if any(k in style_raw for k in ["warm", "lifestyle", "earthy"]):
+        bg      = "#0d0b09"
+        surface = "#161210"
+        border  = "#2a2218"
+    elif any(k in style_raw for k in ["minimal", "clean", "light"]):
+        bg      = "#0f0f0f"
+        surface = "#181818"
+        border  = "#242424"
+    elif any(k in style_raw for k in ["bold", "dramatic"]):
+        bg      = "#050507"
+        surface = "#0f0f12"
+        border  = "#1e1e24"
+    else:  # editorial / moody / default
+        bg      = "#0a0a0a"
+        surface = "#141414"
+        border  = "#222"
+
+    # ── Accent color ──────────────────────────────────────────────────────
+    # Priority: explicit accent_color from brief → primary_color keyword → style fallback
+    accent = None
+    for src in [accent_raw, color_raw, color_desc]:
+        if not src:
+            continue
+        if any(k in src for k in ["violet", "purple", "lavender"]):
+            accent = "#A78BFA"; break
+        if any(k in src for k in ["warm", "gold", "amber", "orange", "earthy", "earth"]):
+            accent = "#c8a97e"; break
+        if any(k in src for k in ["cool", "blue", "teal", "cyan", "slate"]):
+            accent = "#7ba7bc"; break
+        if any(k in src for k in ["white", "b&w", "black and white", "monochrome", "mono"]):
+            accent = "#e0e0e0"; break
+        if any(k in src for k in ["green", "sage", "olive", "forest"]):
+            accent = "#6db896"; break
+        if any(k in src for k in ["pink", "rose", "blush"]):
+            accent = "#f4a7b9"; break
+        if any(k in src for k in ["red", "crimson", "coral"]):
+            accent = "#e05c5c"; break
+        # Hex color directly mentioned
+        import re
+        hex_match = re.search(r'#[0-9a-fA-F]{6}', src)
+        if hex_match:
+            accent = hex_match.group(0); break
+
+    if not accent:
+        # Fall back by style
+        if any(k in style_raw for k in ["warm", "lifestyle"]):
+            accent = "#c8a97e"
+        elif any(k in style_raw for k in ["bold", "dramatic"]):
+            accent = "#A78BFA"
+        elif any(k in style_raw for k in ["minimal", "clean"]):
+            accent = "#e0e0e0"
+        else:
+            accent = "#c8a97e"  # classic warm gold default
+
+    # ── Typography ────────────────────────────────────────────────────────
+    if any(k in typo_raw for k in ["sans", "modern", "clean", "minimal"]):
+        heading_font  = "'Inter', sans-serif"
+        heading_weight = "600"
+        font_import   = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');"
+    elif any(k in typo_raw for k in ["serif", "classic", "editorial", "traditional"]):
+        heading_font  = "'Playfair Display', Georgia, serif"
+        heading_weight = "500"
+        font_import   = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&display=swap');"
+    else:  # mixed (default)
+        heading_font  = "'Playfair Display', Georgia, serif"
+        heading_weight = "500"
+        font_import   = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap');"
+
+    # ── Gallery layout ────────────────────────────────────────────────────
+    if any(k in layout_raw for k in ["grid", "uniform", "square"]):
+        gallery_layout = "grid"        # CSS grid, uniform thumbnails
+    elif any(k in layout_raw for k in ["magazine", "editorial", "feature"]):
+        gallery_layout = "magazine"    # first photo featured large, rest masonry
+    else:
+        gallery_layout = "masonry"     # default: CSS columns masonry
+
+    # ── Hero subtitle / mood ──────────────────────────────────────────────
+    if hero_mood:
+        subtitle = hero_mood[:60]   # trim to keep it short
+    elif any(k in style_raw for k in ["editorial", "moody"]):
+        subtitle = "An Editorial Collection"
+    elif any(k in style_raw for k in ["warm", "lifestyle"]):
+        subtitle = "Moments Worth Keeping"
+    elif any(k in style_raw for k in ["bold", "dramatic"]):
+        subtitle = "Captured Without Compromise"
+    elif any(k in style_raw for k in ["minimal", "clean"]):
+        subtitle = "Photography"
+    else:
+        subtitle = "A Curated Collection"
+
+    # ── Hero brightness ───────────────────────────────────────────────────
+    hero_brightness = "0.45" if any(k in style_raw for k in ["moody", "dramatic", "editorial"]) else "0.5"
+
+    return {
+        "bg":             bg,
+        "surface":        surface,
+        "border":         border,
+        "accent":         accent,
+        "heading_font":   heading_font,
+        "heading_weight": heading_weight,
+        "font_import":    font_import,
+        "gallery_layout": gallery_layout,
+        "subtitle":       subtitle,
+        "hero_brightness": hero_brightness,
+        "has_brief":      bool(brief),
+    }
+
+
+def generate_html(photos_data, site_title, site_author, brief=None):
     """Generate the complete website HTML with embedded CSS and JS."""
+    # Resolve design tokens from brief (or use defaults)
+    tokens = resolve_brief_styles(brief or {})
+
+    bg             = tokens["bg"]
+    surface        = tokens["surface"]
+    border         = tokens["border"]
+    accent         = tokens["accent"]
+    heading_font   = tokens["heading_font"]
+    heading_weight = tokens["heading_weight"]
+    font_import    = tokens["font_import"]
+    gallery_layout = tokens["gallery_layout"]
+    subtitle       = tokens["subtitle"]
+    hero_brightness = tokens["hero_brightness"]
 
     # Build photo entries for the gallery
     gallery_items = []
@@ -90,10 +237,24 @@ def generate_html(photos_data, site_title, site_author):
             "index": i,
         })
 
-    # Generate gallery HTML
+    # Generate gallery HTML based on layout choice
     gallery_html = ""
     for item in gallery_items:
-        gallery_html += f"""
+        if gallery_layout == "magazine" and item["index"] == 0:
+            # Featured first photo — full-width hero tile
+            gallery_html += f"""
+        <div class="gallery-item gallery-featured" onclick="openLightbox({item['index']})">
+            <img src="photos/{item['full']}" alt="{item['title']}" loading="lazy">
+            <div class="gallery-overlay">
+                <div>
+                    <span class="gallery-title" style="font-size:20px">{item['title']}</span>
+                    <p style="font-size:13px;margin-top:4px;opacity:0.8">{item['summary'][:80] + '…' if len(item['summary']) > 80 else item['summary']}</p>
+                </div>
+                <span class="gallery-score">{item['score']}/10</span>
+            </div>
+        </div>"""
+        else:
+            gallery_html += f"""
         <div class="gallery-item" onclick="openLightbox({item['index']})">
             <img src="photos/{item['thumb']}" alt="{item['title']}" loading="lazy">
             <div class="gallery-overlay">
@@ -108,6 +269,26 @@ def generate_html(photos_data, site_title, site_author):
     hero_image = f"photos/{hero_photo['full_web']}" if hero_photo else ""
     hero_title = hero_photo.get("claude_analysis", {}).get("title", "") if hero_photo else ""
 
+    # Choose gallery CSS based on layout
+    if gallery_layout == "grid":
+        gallery_css = """
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 12px;
+        }
+        .gallery-item img { aspect-ratio: 4/3; object-fit: cover; width: 100%; display: block; }"""
+    elif gallery_layout == "magazine":
+        gallery_css = """
+        .gallery { columns: 3; column-gap: 16px; }
+        .gallery-item { break-inside: avoid; margin-bottom: 16px; }
+        .gallery-featured { break-inside: avoid; column-span: all; margin-bottom: 16px; }
+        .gallery-featured img { width: 100%; max-height: 70vh; object-fit: cover; display: block; }"""
+    else:  # masonry (default)
+        gallery_css = """
+        .gallery { columns: 3; column-gap: 16px; }
+        .gallery-item { break-inside: avoid; margin-bottom: 16px; }"""
+
     html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -119,15 +300,17 @@ def generate_html(photos_data, site_title, site_author):
            PHOTOGRAPHY PORTFOLIO - STYLES
            ========================================== */
 
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap');
+        {font_import}
 
         :root {{
-            --bg: #0a0a0a;
-            --surface: #141414;
-            --border: #222;
+            --bg: {bg};
+            --surface: {surface};
+            --border: {border};
             --text: #f5f5f5;
             --text-muted: #777;
-            --accent: #c8a97e;
+            --accent: {accent};
+            --heading-font: {heading_font};
+            --heading-weight: {heading_weight};
         }}
 
         * {{
@@ -176,9 +359,9 @@ def generate_html(photos_data, site_title, site_author):
         }}
 
         .hero-title {{
-            font-family: 'Playfair Display', Georgia, serif;
+            font-family: var(--heading-font);
             font-size: clamp(36px, 8vw, 80px);
-            font-weight: 600;
+            font-weight: var(--heading-weight);
             letter-spacing: 2px;
             margin-bottom: 16px;
             opacity: 0;
@@ -263,9 +446,9 @@ def generate_html(photos_data, site_title, site_author):
         }}
 
         .section-title {{
-            font-family: 'Playfair Display', Georgia, serif;
+            font-family: var(--heading-font);
             font-size: 36px;
-            font-weight: 500;
+            font-weight: var(--heading-weight);
             margin-bottom: 12px;
         }}
 
@@ -281,15 +464,10 @@ def generate_html(photos_data, site_title, site_author):
             font-size: 15px;
         }}
 
-        /* --- Masonry Gallery --- */
-        .gallery {{
-            columns: 3;
-            column-gap: 16px;
-        }}
+        /* --- Gallery Layout --- */
+        {gallery_css}
 
         .gallery-item {{
-            break-inside: avoid;
-            margin-bottom: 16px;
             position: relative;
             border-radius: 8px;
             overflow: hidden;
@@ -419,8 +597,9 @@ def generate_html(photos_data, site_title, site_author):
         }}
 
         .lightbox-title {{
-            font-family: 'Playfair Display', Georgia, serif;
+            font-family: var(--heading-font);
             font-size: 28px;
+            font-weight: var(--heading-weight);
             margin-bottom: 6px;
         }}
 
@@ -488,11 +667,11 @@ def generate_html(photos_data, site_title, site_author):
 
     <!-- Hero Section -->
     <section class="hero">
-        <img class="hero-image" src="{hero_image}" alt="{site_title}">
+        <img class="hero-image" src="{hero_image}" alt="{site_title}" style="filter:brightness({hero_brightness})">
         <div class="hero-gradient"></div>
         <div class="hero-content">
             <h1 class="hero-title">{site_title}</h1>
-            <p class="hero-subtitle">A Curated Collection</p>
+            <p class="hero-subtitle">{subtitle}</p>
         </div>
         <button class="hero-scroll" onclick="document.getElementById('gallery').scrollIntoView({{behavior:'smooth'}})">
             Explore
@@ -690,9 +869,24 @@ def main():
     # Filter out any that failed
     approved = [p for p in approved if "full_web" in p]
 
+    # Load design brief (if the user ran the Design Consultant)
+    brief = load_design_brief()
+    if brief:
+        tokens = resolve_brief_styles(brief)
+        print(f"  Design brief found — applying your style preferences:")
+        print(f"    Style:    {brief.get('style', 'default')}")
+        print(f"    Accent:   {tokens['accent']}")
+        print(f"    Layout:   {tokens['gallery_layout']}")
+        print(f"    Subtitle: {tokens['subtitle']}")
+        print()
+    else:
+        print("  No design brief found — using default style.")
+        print("  Tip: click 'Design Website ✦' in the dashboard to customize!")
+        print()
+
     # Generate HTML
     print("  Generating website...")
-    html = generate_html(approved, SITE_TITLE, SITE_AUTHOR)
+    html = generate_html(approved, SITE_TITLE, SITE_AUTHOR, brief=brief)
 
     # Write index.html
     index_path = DOCS_DIR / "index.html"

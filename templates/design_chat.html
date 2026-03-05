@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Design Your Website — Cullo</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        /* ── Page layout ── */
+        .page-wrap {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            grid-template-rows: 60px 1fr;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ── Header ── */
+        .top-header {
+            grid-column: 1 / -1;
+            background: rgba(16,16,18,0.95);
+            backdrop-filter: blur(24px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 28px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .header-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+        .header-logo img { height: 26px; }
+
+        .header-divider {
+            width: 1px;
+            height: 20px;
+            background: var(--border);
+        }
+
+        .page-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+        }
+        .page-subtitle {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-left: 4px;
+        }
+
+        .header-right {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .cost-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 12px;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+        .cost-pill .val { color: var(--accent); font-weight: 600; }
+
+        /* ── Chat area ── */
+        .chat-area {
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 28px 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            scroll-behavior: smooth;
+        }
+
+        /* ── Messages ── */
+        .msg {
+            display: flex;
+            gap: 12px;
+            max-width: 740px;
+        }
+
+        .msg.user {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .msg-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+        .msg.assistant .msg-avatar {
+            background: var(--accent-dim);
+            border: 1px solid var(--accent-border);
+            color: var(--accent);
+        }
+        .msg.user .msg-avatar {
+            background: rgba(255,255,255,0.07);
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+        }
+
+        .msg-bubble {
+            padding: 12px 16px;
+            border-radius: 14px;
+            font-size: 13px;
+            line-height: 1.65;
+            max-width: 640px;
+        }
+        .msg.assistant .msg-bubble {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-top-left-radius: 4px;
+            color: var(--text-muted);
+        }
+        .msg.user .msg-bubble {
+            background: var(--accent-dim);
+            border: 1px solid var(--accent-border);
+            border-top-right-radius: 4px;
+            color: var(--text);
+        }
+
+        /* Markdown-style bold */
+        .msg-bubble strong { color: var(--text); font-weight: 600; }
+
+        /* Cost chip below assistant message */
+        .msg-cost {
+            font-size: 10px;
+            color: var(--text-dim);
+            margin-top: 5px;
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+        .msg-cost .chip {
+            background: rgba(167,139,250,0.08);
+            border: 1px solid var(--accent-border);
+            border-radius: 10px;
+            padding: 1px 7px;
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        /* Typing indicator */
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 10px 14px;
+        }
+        .typing-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--accent);
+            animation: typingBounce 1.4s infinite ease-in-out;
+        }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typingBounce {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+            30% { transform: translateY(-6px); opacity: 1; }
+        }
+
+        /* ── Input bar ── */
+        .chat-input-bar {
+            padding: 16px 28px;
+            border-top: 1px solid var(--border);
+            background: var(--surface);
+        }
+
+        .input-row {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .chat-input {
+            flex: 1;
+            min-height: 44px;
+            max-height: 160px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text);
+            font-size: 13px;
+            font-family: inherit;
+            padding: 11px 14px;
+            resize: none;
+            outline: none;
+            line-height: 1.5;
+            transition: border-color 0.18s;
+        }
+        .chat-input:focus { border-color: var(--accent-border); }
+        .chat-input::placeholder { color: var(--text-dim); }
+
+        .send-btn {
+            width: 44px; height: 44px;
+            border-radius: 10px;
+            background: var(--accent);
+            border: none;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.18s;
+        }
+        .send-btn:hover { background: var(--accent-hover); transform: translateY(-1px); }
+        .send-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+        .input-hint {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-top: 7px;
+        }
+        .input-hint kbd {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid var(--border);
+            border-radius: 3px;
+            padding: 1px 5px;
+            font-family: monospace;
+            font-size: 10px;
+        }
+
+        /* ── Sidebar ── */
+        .sidebar {
+            overflow-y: auto;
+            padding: 24px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .sidebar-section {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .sidebar-section-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+        }
+
+        .sidebar-section-body {
+            padding: 14px 16px;
+        }
+
+        .brief-field {
+            margin-bottom: 10px;
+        }
+        .brief-field:last-child { margin-bottom: 0; }
+        .brief-field-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-dim);
+            margin-bottom: 3px;
+            font-weight: 600;
+        }
+        .brief-field-value {
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        .brief-placeholder {
+            font-size: 12px;
+            color: var(--text-dim);
+            line-height: 1.6;
+            font-style: italic;
+        }
+
+        .cost-breakdown {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .cost-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+        }
+        .cost-row-label { color: var(--text-dim); }
+        .cost-row-val   { color: var(--text-muted); font-weight: 600; font-family: monospace; }
+        .cost-row-val.accent { color: var(--accent); }
+
+        .cost-divider {
+            height: 1px;
+            background: var(--border);
+            margin: 4px 0;
+        }
+
+        /* Brief ready state */
+        .brief-ready {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            background: rgba(34,197,94,0.07);
+            border: 1px solid rgba(34,197,94,0.25);
+            border-radius: 10px;
+        }
+        .brief-ready-icon { font-size: 20px; }
+        .brief-ready-text { font-size: 12px; color: var(--text-muted); flex: 1; }
+        .brief-ready-text strong { color: var(--green); }
+
+        .quick-questions {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .quick-q {
+            padding: 8px 11px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 12px;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.18s;
+            text-align: left;
+            font-family: inherit;
+        }
+        .quick-q:hover {
+            border-color: var(--accent-border);
+            color: var(--accent);
+            background: var(--accent-dim);
+        }
+
+        /* ── Brief saved banner ── */
+        .brief-banner {
+            background: rgba(34,197,94,0.08);
+            border-bottom: 1px solid rgba(34,197,94,0.2);
+            padding: 10px 28px;
+            font-size: 12px;
+            color: var(--text-muted);
+            display: none;
+            align-items: center;
+            gap: 10px;
+        }
+        .brief-banner.show { display: flex; }
+        .brief-banner strong { color: var(--green); }
+        .brief-banner a {
+            color: var(--accent);
+            text-decoration: none;
+            margin-left: auto;
+            font-weight: 500;
+        }
+        .brief-banner a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+<div class="page-wrap">
+
+    <!-- ── Header ── -->
+    <div class="top-header">
+        <a class="header-logo" href="/">
+            <img src="/logos/main.png" alt="Cullo">
+        </a>
+        <div class="header-divider"></div>
+        <span class="page-title">Website Design Consultant</span>
+        <span class="page-subtitle">powered by Claude</span>
+
+        <div class="header-right">
+            <div class="cost-pill">
+                <span>Session</span>
+                <span class="val" id="header-session-cost">$0.000000</span>
+            </div>
+            <div class="cost-pill">
+                <span>Messages</span>
+                <span class="val" id="header-msg-count">0</span>
+            </div>
+            <a href="/dashboard" class="btn btn-ghost" style="padding:6px 14px;font-size:12px">← Back to Dashboard</a>
+        </div>
+    </div>
+
+    <!-- ── Brief saved banner ── -->
+    <div class="brief-banner" id="brief-banner" style="grid-column:1/-1">
+        <strong>✓ Design brief saved!</strong>
+        Your website preferences have been captured.
+        <a href="/dashboard">Go to dashboard to Build Website →</a>
+    </div>
+
+    <!-- ── Chat ── -->
+    <div class="chat-area">
+        <div class="chat-messages" id="chat-messages">
+            <!-- Messages injected by JS -->
+        </div>
+
+        <div class="chat-input-bar">
+            <div class="input-row">
+                <textarea
+                    class="chat-input"
+                    id="chat-input"
+                    placeholder="Type your answer…"
+                    rows="1"
+                    onkeydown="handleKey(event)"
+                    oninput="autoResize(this)"
+                ></textarea>
+                <button class="send-btn" id="send-btn" onclick="sendMessage()" title="Send (Enter)">&#10148;</button>
+            </div>
+            <div class="input-hint"><kbd>Enter</kbd> to send &nbsp;·&nbsp; <kbd>Shift+Enter</kbd> for new line</div>
+        </div>
+    </div>
+
+    <!-- ── Sidebar ── -->
+    <div class="sidebar">
+
+        <!-- Design Brief (fills in as chat progresses) -->
+        <div class="sidebar-section">
+            <div class="sidebar-section-header">Design Brief</div>
+            <div class="sidebar-section-body" id="brief-body">
+                <div class="brief-placeholder">
+                    Your design preferences will appear here as you chat with Claude.
+                </div>
+            </div>
+        </div>
+
+        <!-- Cost Breakdown -->
+        <div class="sidebar-section">
+            <div class="sidebar-section-header">API Cost Breakdown</div>
+            <div class="sidebar-section-body">
+                <div class="cost-breakdown">
+                    <div class="cost-row">
+                        <span class="cost-row-label">Total messages</span>
+                        <span class="cost-row-val" id="cost-messages">0</span>
+                    </div>
+                    <div class="cost-row">
+                        <span class="cost-row-label">Input tokens</span>
+                        <span class="cost-row-val" id="cost-input-tok">0</span>
+                    </div>
+                    <div class="cost-row">
+                        <span class="cost-row-label">Output tokens</span>
+                        <span class="cost-row-val" id="cost-output-tok">0</span>
+                    </div>
+                    <div class="cost-divider"></div>
+                    <div class="cost-row">
+                        <span class="cost-row-label">Total cost</span>
+                        <span class="cost-row-val accent" id="cost-total">$0.000000</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick prompts -->
+        <div class="sidebar-section">
+            <div class="sidebar-section-header">Quick Answers</div>
+            <div class="sidebar-section-body">
+                <div class="quick-questions">
+                    <button class="quick-q" onclick="quickSend('Moody and editorial with deep shadows')">Moody &amp; editorial</button>
+                    <button class="quick-q" onclick="quickSend('Clean and minimal, let the photos breathe')">Clean &amp; minimal</button>
+                    <button class="quick-q" onclick="quickSend('Bold and dramatic, full-screen images')">Bold &amp; dramatic</button>
+                    <button class="quick-q" onclick="quickSend('Warm and lifestyle-focused')">Warm &amp; lifestyle</button>
+                    <button class="quick-q" onclick="quickSend('Modern with a classic serif feel')">Modern classic</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────
+let messages      = [];   // conversation history
+let sessionCost   = 0;
+let totalInputTok = 0;
+let totalOutputTok = 0;
+let msgCount      = 0;
+let waiting       = false;
+let briefSaved    = false;
+
+// ── Boot ──────────────────────────────────────────────────────────────────
+async function init() {
+    // Check if a brief already exists
+    try {
+        const res = await fetch('/api/design-brief');
+        const brief = await res.json();
+        if (brief) updateBriefPanel(brief);
+    } catch {}
+
+    // Kick off with Claude's opening message
+    await startConversation();
+}
+
+async function startConversation() {
+    addUserMessage(null); // No user message — just trigger Claude to start
+    const openingMsg = {
+        role: 'user',
+        content: "Hi! I'm ready to design my portfolio website. Please start by introducing yourself briefly and asking me the first question."
+    };
+    messages = [openingMsg];
+    await callClaude();
+}
+
+// ── Message helpers ───────────────────────────────────────────────────────
+function addUserMessage(text) {
+    if (!text) return;
+    const container = document.getElementById('chat-messages');
+    const el = document.createElement('div');
+    el.className = 'msg user';
+    el.innerHTML = `
+        <div class="msg-avatar">You</div>
+        <div class="msg-bubble">${escHtml(text)}</div>
+    `;
+    container.appendChild(el);
+    scrollBottom();
+}
+
+function addAssistantMessage(text, cost) {
+    const container = document.getElementById('chat-messages');
+    const el = document.createElement('div');
+    el.className = 'msg assistant';
+    el.innerHTML = `
+        <div class="msg-avatar">✦</div>
+        <div>
+            <div class="msg-bubble">${formatMarkdown(text)}</div>
+            ${cost ? `
+            <div class="msg-cost">
+                ${cost.input_tokens.toLocaleString()} in + ${cost.output_tokens.toLocaleString()} out tokens
+                <span class="chip">$${cost.actual_cost.toFixed(6)}</span>
+                this message
+            </div>` : ''}
+        </div>
+    `;
+    container.appendChild(el);
+    scrollBottom();
+}
+
+function showTyping() {
+    const container = document.getElementById('chat-messages');
+    const el = document.createElement('div');
+    el.className = 'msg assistant';
+    el.id = 'typing-indicator';
+    el.innerHTML = `
+        <div class="msg-avatar">✦</div>
+        <div class="msg-bubble typing-indicator">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+        </div>
+    `;
+    container.appendChild(el);
+    scrollBottom();
+}
+
+function removeTyping() {
+    document.getElementById('typing-indicator')?.remove();
+}
+
+// ── Send ──────────────────────────────────────────────────────────────────
+async function sendMessage() {
+    const input = document.getElementById('chat-input');
+    const text  = input.value.trim();
+    if (!text || waiting) return;
+
+    input.value = '';
+    autoResize(input);
+    addUserMessage(text);
+    messages.push({ role: 'user', content: text });
+    await callClaude();
+}
+
+function quickSend(text) {
+    document.getElementById('chat-input').value = text;
+    sendMessage();
+}
+
+async function callClaude() {
+    if (waiting) return;
+    waiting = true;
+    document.getElementById('send-btn').disabled = true;
+    showTyping();
+
+    try {
+        const res  = await fetch('/api/design-chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messages }),
+        });
+        const data = await res.json();
+        removeTyping();
+
+        if (data.error) {
+            addAssistantMessage(`⚠️ Error: ${data.error}`, null);
+            return;
+        }
+
+        // Add Claude's reply to history
+        messages.push({ role: 'assistant', content: data.reply });
+        msgCount++;
+        addAssistantMessage(data.reply, data);
+
+        // Update costs
+        sessionCost    += data.actual_cost || 0;
+        totalInputTok  += data.input_tokens || 0;
+        totalOutputTok += data.output_tokens || 0;
+        updateCostUI();
+
+        // Check if brief was saved
+        if (data.brief_saved && !briefSaved) {
+            briefSaved = true;
+            document.getElementById('brief-banner').classList.add('show');
+            // Refresh brief panel
+            try {
+                const br = await fetch('/api/design-brief');
+                const brief = await br.json();
+                if (brief) updateBriefPanel(brief);
+            } catch {}
+        }
+
+    } catch(e) {
+        removeTyping();
+        addAssistantMessage('Something went wrong. Please try again.', null);
+    } finally {
+        waiting = false;
+        document.getElementById('send-btn').disabled = false;
+        document.getElementById('chat-input').focus();
+    }
+}
+
+// ── UI Updates ────────────────────────────────────────────────────────────
+function updateCostUI() {
+    document.getElementById('header-session-cost').textContent = `$${sessionCost.toFixed(6)}`;
+    document.getElementById('header-msg-count').textContent    = msgCount;
+    document.getElementById('cost-messages').textContent       = msgCount;
+    document.getElementById('cost-input-tok').textContent      = totalInputTok.toLocaleString();
+    document.getElementById('cost-output-tok').textContent     = totalOutputTok.toLocaleString();
+    document.getElementById('cost-total').textContent          = `$${sessionCost.toFixed(6)}`;
+}
+
+function updateBriefPanel(brief) {
+    const body = document.getElementById('brief-body');
+    const fields = [
+        { key: 'style',                   label: 'Style' },
+        { key: 'layout',                  label: 'Layout' },
+        { key: 'typography',              label: 'Typography' },
+        { key: 'primary_color',           label: 'Primary Color' },
+        { key: 'accent_color',            label: 'Accent Color' },
+        { key: 'color_palette_description', label: 'Color Palette' },
+        { key: 'hero_mood',               label: 'Hero Mood' },
+        { key: 'sections',                label: 'Sections' },
+        { key: 'featured_photo_strategy', label: 'Featured Photos' },
+        { key: 'inspiration_notes',       label: 'Inspiration' },
+    ];
+
+    const filled = fields.filter(f => brief[f.key]);
+    if (!filled.length) return;
+
+    if (filled.length >= 6) {
+        body.innerHTML = `
+            <div class="brief-ready">
+                <div class="brief-ready-icon">✦</div>
+                <div class="brief-ready-text">
+                    <strong>Brief Complete</strong><br>
+                    ${filled.length} preferences captured. Ready to build.
+                </div>
+            </div>
+            <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px">
+                ${filled.map(f => `
+                    <div class="brief-field">
+                        <div class="brief-field-label">${f.label}</div>
+                        <div class="brief-field-value">${Array.isArray(brief[f.key]) ? brief[f.key].join(', ') : brief[f.key]}</div>
+                    </div>
+                `).join('')}
+            </div>`;
+    } else {
+        body.innerHTML = `<div style="display:flex;flex-direction:column;gap:10px">
+            ${filled.map(f => `
+                <div class="brief-field">
+                    <div class="brief-field-label">${f.label}</div>
+                    <div class="brief-field-value">${Array.isArray(brief[f.key]) ? brief[f.key].join(', ') : brief[f.key]}</div>
+                </div>
+            `).join('')}
+            <div class="brief-placeholder" style="margin-top:6px">More questions to come…</div>
+        </div>`;
+    }
+}
+
+// ── Formatting ────────────────────────────────────────────────────────────
+function formatMarkdown(text) {
+    return escHtml(text)
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/\n/g, '<br>');
+}
+
+function escHtml(s) {
+    return String(s || '')
+        .replace(/&/g,'&amp;')
+        .replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;');
+}
+
+function scrollBottom() {
+    const c = document.getElementById('chat-messages');
+    c.scrollTop = c.scrollHeight;
+}
+
+function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+}
+
+function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+}
+
+function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = `toast show ${type || ''}`;
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+init();
+</script>
+</body>
+</html>

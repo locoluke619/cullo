@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ group.theme }} — Cullo</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        :root {
+            --bg:           #101012;
+            --surface:      #1A1A1D;
+            --surface-hover:#222226;
+            --border:       rgba(161,161,170,0.18);
+            --text:         #FFFFFF;
+            --text-muted:   #E2E8F0;
+            --text-dim:     #A1A1AA;
+            --accent:       #A78BFA;
+            --accent-dim:   rgba(167,139,250,0.12);
+            --accent-border:rgba(167,139,250,0.35);
+            --green:        #22C55E;
+            --red:          #EF4444;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+               background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; }
+
+        .header {
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(16,16,18,0.92);
+            backdrop-filter: blur(24px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            height: 60px;
+            display: flex; align-items: center; gap: 16px;
+        }
+        .back-btn {
+            padding: 6px 13px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-dim);
+            font-size: 12px;
+            text-decoration: none;
+            transition: all 0.18s;
+            flex-shrink: 0;
+        }
+        .back-btn:hover { color: var(--text-muted); border-color: rgba(161,161,170,0.4); }
+        .header-info { flex: 1; }
+        .header h1 { font-size: 16px; font-weight: 700; }
+        .header-sub { font-size: 12px; color: var(--text-dim); margin-top: 1px; }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 10px;
+            padding: 20px;
+        }
+
+        .tile {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            background: var(--surface);
+            border: 1px solid var(--border);
+        }
+        .tile img {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            transition: opacity 0.2s;
+        }
+        .tile:hover img { opacity: 0.82; }
+        .tile:hover .tile-overlay { opacity: 1; }
+
+        .tile-overlay {
+            position: absolute; inset: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 50%);
+            opacity: 0;
+            transition: opacity 0.2s;
+            display: flex; flex-direction: column; justify-content: flex-end;
+            padding: 10px;
+        }
+        .tile-name { font-size: 11px; color: #fff; font-weight: 500; line-height: 1.3; }
+        .tile-caption { font-size: 10px; color: rgba(255,255,255,0.72); margin-top: 3px; line-height: 1.3; }
+
+        .score-dot {
+            position: absolute; top: 8px; right: 8px;
+            width: 28px; height: 28px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 10px; font-weight: 700;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(4px);
+        }
+        .score-dot.high { color: #22c55e; border: 1.5px solid #22c55e; }
+        .score-dot.medium { color: #eab308; border: 1.5px solid #eab308; }
+        .score-dot.low { color: #ef4444; border: 1.5px solid #ef4444; }
+        .score-dot.none { color: var(--text-muted); border: 1.5px solid var(--border); }
+
+        .status-badge {
+            position: absolute; top: 8px; left: 8px;
+            padding: 3px 8px; border-radius: 6px;
+            font-size: 10px; font-weight: 600;
+        }
+        .status-badge.approved { background: rgba(34,197,94,0.85); color: #fff; }
+        .status-badge.rejected { background: rgba(239,68,68,0.85); color: #fff; }
+
+        .unanalyzed-overlay {
+            position: absolute; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.88);
+            z-index: 9000; align-items: center; justify-content: center;
+            padding: 20px;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            max-width: 900px; width: 100%;
+            max-height: 90vh;
+            display: flex; overflow: hidden;
+        }
+        .modal-image-side {
+            flex: 1; min-width: 0;
+            background: #000;
+            display: flex; align-items: center; justify-content: center;
+            position: relative;
+        }
+        .modal-image { max-width: 100%; max-height: 80vh; object-fit: contain; }
+        .modal-close {
+            position: absolute; top: 12px; right: 12px;
+            background: rgba(0,0,0,0.6); border: none; color: #fff;
+            width: 32px; height: 32px; border-radius: 50%;
+            font-size: 18px; cursor: pointer; display: flex;
+            align-items: center; justify-content: center;
+        }
+        .modal-info {
+            width: 280px; flex-shrink: 0;
+            padding: 20px; overflow-y: auto;
+            border-left: 1px solid var(--border);
+            display: flex; flex-direction: column; gap: 12px;
+        }
+        .modal-title { font-size: 16px; font-weight: 700; }
+        .modal-score-row { display: flex; align-items: center; gap: 8px; }
+        .score-badge {
+            padding: 3px 10px; border-radius: 20px;
+            font-size: 13px; font-weight: 700;
+        }
+        .score-badge.high { background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
+        .score-badge.medium { background: rgba(234,179,8,0.15); color: #eab308; border: 1px solid rgba(234,179,8,0.3); }
+        .score-badge.low { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+        .modal-text { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+        .modal-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+        .modal-filename { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+        .modal-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+        .btn-approve {
+            padding: 10px; background: rgba(34,197,94,0.15); color: #22c55e;
+            border: 1px solid rgba(34,197,94,0.3); border-radius: 8px;
+            font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit;
+            transition: all 0.2s; width: 100%;
+        }
+        .btn-approve:hover { background: rgba(34,197,94,0.25); }
+        .btn-reject {
+            padding: 10px; background: rgba(239,68,68,0.1); color: #ef4444;
+            border: 1px solid rgba(239,68,68,0.25); border-radius: 8px;
+            font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit;
+            transition: all 0.2s; width: 100%;
+        }
+        .btn-reject:hover { background: rgba(239,68,68,0.2); }
+        .btn-undo {
+            padding: 10px; background: transparent; color: var(--text-muted);
+            border: 1px solid var(--border); border-radius: 8px;
+            font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit;
+            transition: all 0.2s; width: 100%;
+        }
+        .btn-undo:hover { border-color: var(--text-muted); color: var(--text); }
+        .btn-analyze {
+            padding: 10px; background: var(--accent-dim); color: var(--accent);
+            border: 1px solid var(--accent-border); border-radius: 8px;
+            font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit;
+            transition: all 0.2s; width: 100%;
+        }
+        .btn-analyze:hover { background: rgba(167,139,250,0.22); }
+        .btn-analyze:disabled { opacity: 0.5; cursor: default; }
+
+        .toast {
+            position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+            background: var(--surface); border: 1px solid var(--border);
+            color: var(--text); padding: 10px 20px; border-radius: 10px;
+            font-size: 14px; z-index: 10000; opacity: 0;
+            transition: opacity 0.3s; pointer-events: none;
+        }
+        .toast.show { opacity: 1; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <a href="/dashboard" class="back-btn">← Back to Dashboard</a>
+    <div class="header-info">
+        <h1>{{ group.theme }}</h1>
+        <div class="header-sub">{{ photos|length }} photos in this scene</div>
+    </div>
+</div>
+
+<div class="grid" id="photo-grid">
+    {% for p in photos %}
+    {% set a = p.get('claude_analysis') or {} %}
+    {% set score = a.get('score', 0) %}
+    {% set analyzed = a and not a.get('error') and score %}
+    {% set score_class = 'high' if score >= 7.5 else ('medium' if score >= 5.5 else ('low' if analyzed else 'none')) %}
+    <div class="tile" onclick="openPhoto({{ p.id }})"
+         data-id="{{ p.id }}"
+         data-approved="{{ p.get('approved') | tojson }}"
+         data-analyzed="{{ analyzed | tojson }}">
+        <img src="/thumb/{{ p.id }}" alt="{{ p.filename }}" loading="lazy"
+             style="{{ '' if analyzed else 'filter:saturate(0.5)' }}">
+        <div class="tile-overlay">
+            <div class="tile-name">{{ p.filename }}</div>
+            {% if p.get('caption') %}<div class="tile-caption">{{ p.caption }}</div>{% endif %}
+        </div>
+        <div class="score-dot {{ score_class }}">
+            {% if analyzed %}{{ score }}{% else %}—{% endif %}
+        </div>
+        {% if p.get('approved') == true %}
+            <div class="status-badge approved">✓</div>
+        {% elif p.get('approved') == false %}
+            <div class="status-badge rejected">✗</div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal" onclick="closeOutside(event)">
+    <div class="modal">
+        <div class="modal-image-side">
+            <button class="modal-close" onclick="closeModal()">×</button>
+            <img class="modal-image" id="modal-img" src="" alt="">
+        </div>
+        <div class="modal-info">
+            <div class="modal-title" id="modal-title"></div>
+            <div class="modal-score-row" id="modal-score-row"></div>
+            <div>
+                <div class="modal-label">Summary</div>
+                <div class="modal-text" id="modal-summary"></div>
+            </div>
+            <div id="modal-extra"></div>
+            <div class="modal-filename" id="modal-filename"></div>
+            <div class="modal-actions" id="modal-actions"></div>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// Build photo data from server
+const photos = {{ photos | tojson }};
+const photoById = {};
+photos.forEach(p => photoById[p.id] = p);
+let currentId = null;
+
+function openPhoto(id) {
+    currentId = id;
+    const p = photoById[id];
+    const a = p.claude_analysis || {};
+    const score = a.score || 0;
+    const analyzed = !!(a.score && !a.error);
+    const scoreClass = score >= 7.5 ? 'high' : score >= 5.5 ? 'medium' : 'low';
+
+    document.getElementById('modal-img').src = `/photo/${id}`;
+    document.getElementById('modal-title').textContent = a.title || p.filename;
+    document.getElementById('modal-filename').textContent =
+        `${p.filename}  •  ${p.width}×${p.height}  •  ${p.megapixels}MP  •  ${p.file_size_mb}MB`;
+
+    document.getElementById('modal-score-row').innerHTML = analyzed
+        ? `<span class="score-badge ${scoreClass}">${score}/10</span><span style="font-size:12px;color:var(--text-muted)">${a.best_use || ''}</span>`
+        : `<span style="font-size:12px;color:var(--text-muted)">Not yet analyzed</span>`;
+
+    document.getElementById('modal-summary').textContent =
+        a.summary || p.caption || (analyzed ? '—' : 'Not yet analyzed by Claude.');
+
+    // Extra analysis
+    const extra = document.getElementById('modal-extra');
+    if (analyzed && (a.composition || a.technical)) {
+        extra.innerHTML = `
+            ${a.composition ? `<div><div class="modal-label">Composition</div><div class="modal-text">${a.composition}</div></div>` : ''}
+            ${a.technical ? `<div><div class="modal-label">Technical</div><div class="modal-text">${a.technical}</div></div>` : ''}
+        `;
+    } else {
+        extra.innerHTML = '';
+    }
+
+    // Actions
+    const actions = document.getElementById('modal-actions');
+    const analyzeBtn = analyzed ? '' :
+        `<button class="btn-analyze" id="analyze-btn-${id}" onclick="analyzeOne(${id})">✦ Analyze with Claude</button>`;
+
+    if (p.approved === true) {
+        actions.innerHTML = `${analyzeBtn}
+            <button class="btn-undo" onclick="doAction(${id},'reset')">Undo</button>
+            <button class="btn-reject" onclick="doAction(${id},'reject')">Remove</button>`;
+    } else if (p.approved === false) {
+        actions.innerHTML = `${analyzeBtn}
+            <button class="btn-approve" onclick="doAction(${id},'approve')">Add to Website</button>
+            <button class="btn-undo" onclick="doAction(${id},'reset')">Undo</button>`;
+    } else {
+        actions.innerHTML = `${analyzeBtn}
+            <button class="btn-approve" onclick="doAction(${id},'approve')">Add to Website</button>
+            <button class="btn-reject" onclick="doAction(${id},'reject')">Skip This Photo</button>`;
+    }
+
+    document.getElementById('modal').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+async function doAction(id, action) {
+    await fetch(`/api/photos/${id}/${action}`, { method: 'POST' });
+    const p = photoById[id];
+    p.approved = action === 'approve' ? true : action === 'reject' ? false : null;
+    closeModal();
+    // Update tile status badge
+    const tile = document.querySelector(`.tile[data-id="${id}"]`);
+    if (tile) {
+        tile.querySelector('.status-badge')?.remove();
+        if (p.approved === true) tile.insertAdjacentHTML('beforeend', '<div class="status-badge approved">✓</div>');
+        else if (p.approved === false) tile.insertAdjacentHTML('beforeend', '<div class="status-badge rejected">✗</div>');
+    }
+    showToast(action === 'approve' ? 'Added to website!' : 'Done', action === 'approve' ? 'success' : '');
+}
+
+async function analyzeOne(id) {
+    const btn = document.getElementById(`analyze-btn-${id}`);
+    if (btn) { btn.disabled = true; btn.textContent = 'Analyzing…'; }
+    showToast('Sending to Claude… this takes a few seconds', '');
+    try {
+        const res = await fetch(`/api/photos/${id}/analyze`, { method: 'POST' });
+        const data = await res.json();
+        if (data.error) {
+            showToast('Failed: ' + data.error, 'error');
+            if (btn) { btn.disabled = false; btn.textContent = '✦ Analyze with Claude'; }
+        } else {
+            // Update local photo data with new analysis
+            photoById[id].claude_analysis = data.analysis;
+            showToast('Analysis complete!', 'success');
+            closeModal();
+            openPhoto(id);
+            // Update tile: remove desaturation, update score dot
+            const img = document.querySelector(`.tile[data-id="${id}"] img`);
+            if (img) img.style.filter = '';
+            const dot = document.querySelector(`.tile[data-id="${id}"] .score-dot`);
+            if (dot && data.analysis?.score) {
+                const s = data.analysis.score;
+                dot.className = `score-dot ${s >= 7.5 ? 'high' : s >= 5.5 ? 'medium' : 'low'}`;
+                dot.textContent = s;
+            }
+        }
+    } catch(e) {
+        showToast('Analysis failed — check terminal.', 'error');
+        if (btn) { btn.disabled = false; btn.textContent = '✦ Analyze with Claude'; }
+    }
+}
+
+function closeModal() {
+    document.getElementById('modal').classList.remove('active');
+    document.body.style.overflow = '';
+}
+function closeOutside(e) {
+    if (e.target === document.getElementById('modal')) closeModal();
+}
+
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeModal();
+    if (!currentId) return;
+    if (e.key === 'a' || e.key === 'A') { e.preventDefault(); doAction(currentId, 'approve'); }
+    if (e.key === 's' || e.key === 'S') { e.preventDefault(); doAction(currentId, 'reject'); }
+});
+
+function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.style.borderColor = type === 'success' ? '#22c55e' : type === 'error' ? '#ef4444' : '';
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>

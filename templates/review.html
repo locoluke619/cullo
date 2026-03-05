@@ -6,249 +6,1404 @@
     <title>Cullo — Review Dashboard</title>
     <link rel="stylesheet" href="/static/style.css">
     <style>
-        .group-stack { position: relative; }
-        .group-stack::before {
-            content: '';
+        /* ── Nav counter chip ── */
+        .nav-counter {
             position: absolute;
-            top: -5px; left: 5px; right: -5px; bottom: 5px;
-            border-radius: 12px;
-            background: var(--surface-hover);
-            border: 1px solid var(--border);
-            z-index: -1;
-        }
-        .group-stack::after {
-            content: '';
-            position: absolute;
-            top: -10px; left: 10px; right: -10px; bottom: 10px;
-            border-radius: 12px;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            z-index: -2;
-            opacity: 0.6;
-        }
-        .group-badge {
-            position: absolute;
-            top: 10px; right: 10px;
-            background: rgba(0,0,0,0.75);
-            color: white;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.7);
+            color: var(--text-dim);
             font-size: 11px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            white-space: nowrap;
+            backdrop-filter: blur(8px);
+            pointer-events: none;
+        }
+        .modal-overlay { position: fixed; }
+        .modal-image { cursor: zoom-in; }
+
+        /* ── Fullscreen zoom overlay ── */
+        #fullscreen-zoom {
+            display: none;
+            position: fixed; inset: 0;
+            background: #000;
+            z-index: 9500;
+            align-items: center; justify-content: center;
+        }
+        #fullscreen-zoom.active { display: flex; }
+        #fullscreen-zoom > img { max-width: 100vw; max-height: 100vh; object-fit: contain; cursor: zoom-out; }
+
+        .fz-flash { position: absolute; inset: 0; pointer-events: none; opacity: 0; }
+        .fz-flash.green { background: rgba(34,197,94,0.22); border: 4px solid rgba(34,197,94,0.6); }
+        .fz-flash.red   { background: rgba(239,68,68,0.20);  border: 4px solid rgba(239,68,68,0.5); }
+        .fz-flash.show  { opacity: 1; transition: opacity 0.35s ease-out; }
+
+        .fz-label { position: absolute; font-size: 52px; font-weight: 900; pointer-events: none; opacity: 0; transform: scale(0.7); transition: all 0.35s ease-out; }
+        .fz-label.keep { color: rgba(34,197,94,0.95); top: 32px; right: 36px; }
+        .fz-label.skip { color: rgba(239,68,68,0.9);  bottom: 32px; left: 36px; }
+        .fz-label.show { opacity: 1; transform: scale(1); transition: opacity 0s, transform 0s; }
+
+        .fz-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.6); backdrop-filter: blur(6px); color: rgba(255,255,255,0.7); font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; z-index: 2; }
+        .fz-nav:hover { border-color: var(--accent); color: var(--accent); }
+        .fz-nav:disabled { opacity: 0.2; cursor: default; }
+        .fz-nav.prev { left: 18px; } .fz-nav.next { right: 18px; }
+
+        .fz-bar { position: absolute; bottom: 0; left: 0; right: 0; padding: 16px 24px; background: linear-gradient(transparent, rgba(0,0,0,0.88)); display: flex; align-items: center; gap: 14px; }
+        .fz-bar-title { flex: 1; font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.9); }
+        .fz-bar-score { font-size: 13px; font-weight: 700; color: var(--accent); }
+        .fz-bar-hints { font-size: 11px; color: rgba(255,255,255,0.4); white-space: nowrap; }
+        .fz-approve { padding: 7px 18px; background: var(--green); color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; transition: filter 0.15s; }
+        .fz-approve:hover { filter: brightness(1.1); }
+        .fz-skip { padding: 7px 14px; background: transparent; color: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.18); border-radius: 8px; font-size: 13px; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+        .fz-skip:hover { border-color: var(--red); color: var(--red); }
+        .fz-close { position: absolute; top: 14px; right: 16px; width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.55); color: white; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 3; transition: background 0.15s; }
+        .fz-close:hover { background: rgba(239,68,68,0.5); }
+
+        /* ── Compare strip inside modal ── */
+        .compare-strip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 26px;
+            background: rgba(167,139,250,0.06);
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+        }
+        .compare-strip-label {
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+
+        /* Session cost pill */
+        .session-cost {
+            font-size: 11px;
+            color: var(--text-dim);
+            padding: 4px 10px;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            cursor: default;
+        }
+        .session-cost .cost-val { color: var(--accent); font-weight: 600; }
+
+        /* ── Multi-select ── */
+        .select-cb {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.4);
+            background: rgba(0,0,0,0.45);
+            backdrop-filter: blur(4px);
+            cursor: pointer;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            color: transparent;
+            transition: all 0.15s;
+            opacity: 0.3;  /* always faintly visible */
+        }
+        .photo-card:hover .select-cb { opacity: 1; border-color: rgba(255,255,255,0.75); }
+        .photo-card.selected .select-cb,
+        body.selecting .select-cb { opacity: 1; }
+        .photo-card.selected .select-cb {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+        .photo-card.selected {
+            outline: 2.5px solid var(--accent);
+            outline-offset: 2px;
+        }
+
+        /* Floating selection action bar */
+        #select-bar {
+            display: none;
+            position: fixed;
+            bottom: 28px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 500;
+            background: var(--surface);
+            border: 1px solid var(--accent-border);
+            border-radius: 40px;
+            padding: 10px 16px 10px 20px;
+            gap: 12px;
+            align-items: center;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(167,139,250,0.15);
+            white-space: nowrap;
+        }
+        #select-bar.visible { display: flex; }
+        #select-bar .sel-count {
+            font-size: 13px;
             font-weight: 600;
-            padding: 3px 9px;
+            color: var(--accent);
+        }
+        #select-bar .sel-label {
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        /* ── Quick Cull Mode ── */
+        #cull-overlay {
+            display: none;
+            position: fixed; inset: 0;
+            background: #0a0a0c;
+            z-index: 2000;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+        }
+        #cull-overlay.active { display: flex; }
+
+        .cull-progress {
+            position: absolute;
+            top: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 12px;
+            color: var(--text-dim);
+            white-space: nowrap;
+        }
+        .cull-progress strong { color: var(--text-muted); }
+
+        .cull-exit {
+            position: absolute;
+            top: 14px;
+            right: 20px;
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            font-size: 12px;
+            padding: 5px 12px;
+            border-radius: 7px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.15s;
+        }
+        .cull-exit:hover { border-color: rgba(161,161,170,0.5); color: var(--text-muted); }
+
+        .cull-photo-wrap {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100vw;
+            height: 78vh;
+        }
+        .cull-photo-wrap img {
+            max-width: 94vw;
+            max-height: 78vh;
+            object-fit: contain;
+            border-radius: 8px;
+            transition: transform 0.08s;
+            user-select: none;
+        }
+
+        /* Flash feedback overlays */
+        .cull-flash {
+            position: absolute; inset: 0;
+            border-radius: 8px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0s;
+        }
+        .cull-flash.green { background: rgba(34,197,94,0.28); border: 3px solid rgba(34,197,94,0.6); }
+        .cull-flash.red   { background: rgba(239,68,68,0.26);  border: 3px solid rgba(239,68,68,0.55); }
+        .cull-flash.show  { opacity: 1; transition: opacity 0.35s ease-out; }
+
+        /* Direction label that flashes */
+        .cull-dir-label {
+            position: absolute;
+            font-size: 48px;
+            font-weight: 900;
+            letter-spacing: -1px;
+            pointer-events: none;
+            opacity: 0;
+            transform: scale(0.7);
+            transition: all 0.35s ease-out;
+        }
+        .cull-dir-label.keep  { color: rgba(34,197,94,0.95); top: 28px; right: 32px; }
+        .cull-dir-label.skip  { color: rgba(239,68,68,0.9);  bottom: 28px; left: 32px; }
+        .cull-dir-label.show  { opacity: 1; transform: scale(1); transition: opacity 0s, transform 0s; }
+
+        .cull-info {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border);
             border-radius: 10px;
-            z-index: 5;
+            margin-top: 12px;
+        }
+        .cull-score {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--accent);
+        }
+        .cull-name {
+            font-size: 12px;
+            color: var(--text-dim);
+            max-width: 320px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .cull-status {
+            font-size: 11px;
+            padding: 2px 9px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+        .cull-status.approved { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+        .cull-status.rejected { background: rgba(239,68,68,0.12); color: var(--red); border: 1px solid rgba(239,68,68,0.25); }
+        .cull-status.pending  { background: rgba(255,255,255,0.05); color: var(--text-dim); border: 1px solid var(--border); }
+
+        .cull-hints {
+            position: absolute;
+            bottom: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 18px;
+            font-size: 11px;
+            color: var(--text-dim);
+            white-space: nowrap;
+        }
+        .cull-hints span { display: flex; align-items: center; gap: 5px; }
+        .cull-hints kbd {
+            background: rgba(255,255,255,0.07);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 1px 5px;
+            font-size: 10px;
+            font-family: monospace;
+        }
+
+        /* ── Card flip ── */
+        .img-flip {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4/3;
+            perspective: 900px;
+            border-radius: 11px 11px 0 0;
+            overflow: hidden;
+        }
+        .img-flip-inner {
+            width: 100%; height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.42s cubic-bezier(0.4,0,0.2,1);
+        }
+        .img-flip-inner.flipped { transform: rotateY(180deg); }
+        .img-flip-front, .img-flip-back {
+            position: absolute; inset: 0;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+        .img-flip-back {
+            transform: rotateY(180deg);
+            background: #111113;
+            display: flex; align-items: center; justify-content: center;
+            flex-direction: column; padding: 16px; gap: 8px; text-align: center;
+        }
+        .flip-score { font-size: 38px; font-weight: 800; color: var(--accent); letter-spacing: -2px; line-height: 1; }
+        .flip-summary { font-size: 11px; color: var(--text-muted); line-height: 1.65; max-height: 4.5em; overflow: hidden; }
+        .flip-tag { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.8px; }
+        .flip-unanalyzed { font-size: 12px; color: var(--text-dim); }
+        .flip-analyze-btn {
+            padding: 7px 14px; background: var(--accent); color: white;
+            border: none; border-radius: 8px; font-size: 12px; font-weight: 600;
+            cursor: pointer; font-family: inherit; transition: filter 0.15s;
+        }
+        .flip-analyze-btn:hover { filter: brightness(1.1); }
+        .flip-back-close {
+            position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+            padding: 6px 18px; border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.22); background: rgba(0,0,0,0.6);
+            color: rgba(255,255,255,0.8); font-size: 12px; font-weight: 600;
+            cursor: pointer; white-space: nowrap; font-family: inherit;
             backdrop-filter: blur(4px);
         }
-        .group-hint {
-            font-size: 11px;
-            color: var(--accent);
-            margin-top: 4px;
-            letter-spacing: 0.2px;
+        .flip-back-close:hover { background: rgba(167,139,250,0.3); border-color: var(--accent); color: white; }
+
+        /* ── Card hover action buttons ── */
+        .card-hover-actions {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            padding: 22px 6px 7px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.88));
+            display: flex; gap: 5px;
+            opacity: 0; transition: opacity 0.2s; pointer-events: none;
         }
+        .img-flip:hover .card-hover-actions { opacity: 1; pointer-events: all; }
+        .img-flip-inner.flipped ~ * .card-hover-actions,
+        .img-flip-inner.flipped .card-hover-actions { opacity: 0 !important; pointer-events: none !important; }
+        .card-hover-btn {
+            flex: 1; padding: 5px 6px; border-radius: 7px;
+            border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.55);
+            backdrop-filter: blur(4px); color: white; font-size: 11px; font-weight: 600;
+            cursor: pointer; font-family: inherit; transition: all 0.15s; white-space: nowrap;
+        }
+        .card-hover-btn:hover { background: rgba(167,139,250,0.3); border-color: var(--accent); }
+
+        /* ── Similar Shots Group Overlay ── */
+        #group-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.82); backdrop-filter: blur(8px);
+            z-index: 3500; align-items: center; justify-content: center;
+        }
+        #group-overlay.active { display: flex; }
+        .go-panel {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 16px; width: min(800px, 96vw);
+            max-height: 88vh; display: flex; flex-direction: column; overflow: hidden;
+        }
+        .go-header {
+            padding: 18px 22px 14px; border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+        }
+        .go-title { font-size: 16px; font-weight: 700; flex: 1; }
+        .go-count { font-size: 12px; color: var(--text-dim); }
+        .go-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
+            gap: 8px; padding: 14px; overflow-y: auto; flex: 1;
+        }
+        .go-thumb {
+            position: relative; aspect-ratio: 4/3; border-radius: 8px;
+            overflow: hidden; cursor: pointer; border: 2px solid transparent; transition: border-color 0.18s;
+        }
+        .go-thumb:hover { border-color: var(--accent); }
+        .go-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .go-thumb-info {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            padding: 14px 7px 7px; background: linear-gradient(transparent, rgba(0,0,0,0.85));
+            display: flex; align-items: flex-end; gap: 5px;
+        }
+        .go-thumb-score { font-size: 11px; font-weight: 700; color: var(--accent); }
+        .go-thumb-name { font-size: 9px; color: rgba(255,255,255,0.6); font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+        .go-footer {
+            padding: 14px 22px; border-top: 1px solid var(--border);
+            display: flex; gap: 8px; align-items: center; flex-shrink: 0;
+        }
+        /* Thumb selection inside group overlay */
+        .go-thumb.go-selected { border-color: var(--accent); }
+        .go-thumb.go-skipped  { opacity: 0.3; border-color: var(--red) !important; }
+        .go-check {
+            position: absolute; top: 6px; left: 6px;
+            width: 20px; height: 20px; border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.5); background: rgba(0,0,0,0.45);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 11px; font-weight: 700; color: white; pointer-events: none;
+        }
+        .go-thumb.go-selected .go-check { background: var(--accent); border-color: var(--accent); }
+        .go-skip-btn {
+            position: absolute; top: 6px; right: 6px;
+            width: 22px; height: 22px; border-radius: 50%;
+            border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.55);
+            color: rgba(255,255,255,0.7); font-size: 13px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            line-height: 1; padding: 0; z-index: 2; transition: all 0.15s;
+        }
+        .go-skip-btn:hover { background: rgba(239,68,68,0.7); border-color: var(--red); color: white; }
+        .go-remove-btn {
+            position: absolute; bottom: 6px; right: 6px;
+            padding: 2px 7px; border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.18); background: rgba(0,0,0,0.6);
+            color: rgba(255,255,255,0.6); font-size: 9px; cursor: pointer;
+            z-index: 2; transition: all 0.15s; font-family: inherit;
+        }
+        .go-remove-btn:hover { background: rgba(167,139,250,0.35); color: white; border-color: var(--accent); }
+
+        /* ── Chatbot ── */
+        #chat-fab {
+            position: fixed; bottom: 28px; right: 28px;
+            width: 52px; height: 52px; border-radius: 50%;
+            background: var(--accent); color: white; border: none;
+            font-size: 22px; cursor: pointer;
+            box-shadow: 0 4px 24px rgba(167,139,250,0.45); z-index: 1200;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s;
+        }
+        #chat-fab:hover { transform: scale(1.08); }
+        #chat-panel {
+            position: fixed; bottom: 92px; right: 20px; width: 360px;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 16px; box-shadow: 0 12px 48px rgba(0,0,0,0.65);
+            z-index: 1200; display: none; flex-direction: column;
+            overflow: hidden; max-height: 500px;
+        }
+        #chat-panel.open { display: flex; }
+        .chat-hdr {
+            padding: 14px 16px 12px; border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+        }
+        .chat-hdr-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px rgba(34,197,94,0.6); }
+        .chat-hdr-title { font-size: 13px; font-weight: 700; flex: 1; }
+        .chat-hdr-sub { font-size: 10px; color: var(--text-dim); }
+        .chat-msgs {
+            flex: 1; overflow-y: auto; padding: 12px;
+            display: flex; flex-direction: column; gap: 8px; min-height: 160px;
+        }
+        .chat-bubble {
+            max-width: 86%; padding: 9px 12px; border-radius: 12px;
+            font-size: 12px; line-height: 1.6;
+        }
+        .chat-bubble.bot { background: var(--bg); border: 1px solid var(--border); align-self: flex-start; color: var(--text-muted); border-bottom-left-radius: 3px; }
+        .chat-bubble.user { background: var(--accent); color: white; align-self: flex-end; border-bottom-right-radius: 3px; }
+        .chat-bubble.thinking { background: var(--bg); border: 1px solid var(--border); align-self: flex-start; color: var(--text-dim); font-style: italic; }
+        .chat-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+        .chat-chip {
+            padding: 3px 10px; border-radius: 12px; font-size: 11px;
+            background: var(--accent-dim); border: 1px solid var(--accent-border);
+            color: var(--accent); cursor: pointer; transition: all 0.15s; font-family: inherit;
+        }
+        .chat-chip:hover { background: rgba(167,139,250,0.22); }
+        .chat-input-row {
+            padding: 10px 12px; border-top: 1px solid var(--border);
+            display: flex; gap: 7px; align-items: flex-end; flex-shrink: 0;
+        }
+        #chat-input {
+            flex: 1; background: var(--bg); border: 1px solid var(--border);
+            border-radius: 9px; color: var(--text); font-size: 13px; font-family: inherit;
+            padding: 7px 11px; resize: none; outline: none;
+            max-height: 80px; min-height: 34px; line-height: 1.4; transition: border-color 0.2s;
+        }
+        #chat-input:focus { border-color: var(--accent-border); }
+        #chat-send {
+            width: 34px; height: 34px; border-radius: 8px; background: var(--accent);
+            color: white; border: none; font-size: 16px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0; transition: filter 0.15s;
+        }
+        #chat-send:hover { filter: brightness(1.1); }
+        #chat-send:disabled { opacity: 0.4; cursor: not-allowed; }
     </style>
 </head>
 <body>
 
+<!-- ── Header ── -->
 <div class="header">
-    <h1>Cullo</h1>
+    <a class="header-logo" href="/">
+        <img src="/logos/main.png" alt="Cullo">
+    </a>
+
     <div class="header-stats">
-        <span class="stat"><span class="stat-dot green"></span> <span id="stat-approved">0</span> approved</span>
-        <span class="stat"><span class="stat-dot red"></span> <span id="stat-rejected">0</span> skipped</span>
-        <span class="stat"><span class="stat-dot yellow"></span> <span id="stat-pending">0</span> remaining</span>
+        <span class="stat">
+            <span class="stat-dot green"></span>
+            <span id="stat-approved">0</span> approved
+        </span>
+        <span class="stat">
+            <span class="stat-dot red"></span>
+            <span id="stat-rejected">0</span> skipped
+        </span>
+        <span class="stat">
+            <span class="stat-dot yellow"></span>
+            <span id="stat-pending">0</span> pending
+        </span>
+        <!-- Delivery goal -->
+        <span class="stat delivery-goal" id="delivery-goal-stat" style="border-left:1px solid var(--border);padding-left:10px;margin-left:4px;display:none">
+            <span id="delivery-label" style="color:var(--accent);font-weight:600"></span>
+        </span>
+        <button id="delivery-goal-btn" onclick="toggleDeliveryGoal()" title="Set delivery goal"
+            style="background:none;border:1px dashed var(--border);border-radius:12px;color:var(--text-dim);font-size:11px;padding:3px 10px;cursor:pointer;transition:all 0.15s"
+            onmouseover="this.style.borderColor='var(--accent-border)';this.style.color='var(--accent)'"
+            onmouseout="this.style.borderColor='';this.style.color=''">
+            + goal
+        </button>
+        <div id="delivery-goal-input" style="display:none;align-items:center;gap:5px">
+            <input id="delivery-goal-num" type="number" min="1" placeholder="50"
+                style="width:60px;padding:3px 8px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:inherit"
+                onkeydown="if(event.key==='Enter')saveDeliveryGoal()"
+                onfocus="this.style.borderColor='var(--accent-border)'" onblur="this.style.borderColor=''">
+            <button onclick="saveDeliveryGoal()" style="padding:3px 10px;background:var(--accent);border:none;border-radius:8px;color:white;font-size:11px;cursor:pointer;font-family:inherit">Set</button>
+            <button onclick="clearDeliveryGoal()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;padding:2px">×</button>
+        </div>
     </div>
+
     <div class="header-actions">
-        <a href="/browse" style="padding:8px 16px;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:13px;text-decoration:none;transition:all 0.2s" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text-muted)'">Browse All Photos</a>
-        <a href="/client" style="padding:8px 16px;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:13px;text-decoration:none;transition:all 0.2s" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text-muted)'">Client Gallery ♥</a>
+        <!-- Usage tracker -->
+        <span class="session-cost" id="session-cost" title="Claude API spend this session" style="display:none">
+            <span class="cost-val" id="session-cost-val">$0.00</span>
+        </span>
+        <span id="usage-pill" title="Total Claude API spend — click to reset"
+            onclick="confirmResetUsage()"
+            style="display:none;font-size:11px;color:var(--text-dim);padding:4px 10px;border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:all 0.15s"
+            onmouseover="this.style.borderColor='var(--accent-border)';this.style.color='var(--text)'"
+            onmouseout="this.style.borderColor='';this.style.color=''">
+            <span id="usage-total" style="color:var(--accent);font-weight:600">$0.00</span><span id="usage-budget-part" style="display:none"> / <span id="usage-budget">$0.00</span></span>
+        </span>
+
+        <!-- Separator -->
+        <div style="width:1px;height:20px;background:var(--border);flex-shrink:0"></div>
+
+        <a href="/browse" class="btn btn-ghost">Browse All</a>
+        <a href="/website-design" class="btn btn-ghost">Design Website</a>
+
+        <!-- Separator -->
+        <div style="width:1px;height:20px;background:var(--border);flex-shrink:0"></div>
+
+        <button class="btn btn-ghost" onclick="exportClientProof()" title="Export standalone client gallery">Client Proof</button>
+        <button class="btn btn-ghost" id="btn-import-picks" onclick="openImportPicks()" title="Import client selections">Import Picks</button>
+        <button class="btn btn-ghost" onclick="exportRaws()" title="Copy RAW files for editing">Export RAWs</button>
+        <button class="btn btn-ghost" onclick="confirmResetAll()" title="Reset all approve/skip decisions back to pending" style="border-color:rgba(239,68,68,0.35);color:rgba(239,68,68,0.7)">Reset All</button>
         <button class="btn btn-primary" onclick="buildWebsite()">Build Website</button>
     </div>
 </div>
 
+<!-- ── Filter Tabs + Toolbar ── -->
 <div class="filters">
-    <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+    <!-- View filters -->
+    <button class="filter-btn active" onclick="setFilter('all', this)">Top Photos</button>
     <button class="filter-btn" onclick="setFilter('groups', this)">Similar Groups</button>
     <button class="filter-btn" onclick="setFilter('pending', this)">To Review</button>
     <button class="filter-btn" onclick="setFilter('approved', this)">Approved</button>
     <button class="filter-btn" onclick="setFilter('rejected', this)">Skipped</button>
+    <button class="filter-btn" id="filter-btn-client" onclick="setFilter('client', this)" style="display:none">Client Picks ♥</button>
+
+    <!-- Sort (Top Photos only) -->
+    <div id="sort-wrap" style="display:flex;align-items:center;gap:5px;margin-left:8px">
+        <span style="font-size:11px;color:var(--text-dim);white-space:nowrap">Sort:</span>
+        <select id="sort-select" onchange="setSort(this.value)"
+            style="background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:12px;font-family:inherit;padding:4px 8px;outline:none;cursor:pointer">
+            <option value="score">Claude Score</option>
+            <option value="local">Pixel Quality</option>
+            <option value="filename">Filename</option>
+        </select>
+    </div>
+
+    <!-- Search -->
+    <div style="position:relative;display:flex;align-items:center;margin-left:8px">
+        <span style="position:absolute;left:9px;font-size:12px;color:var(--text-dim);pointer-events:none">⌕</span>
+        <input id="photo-search" type="text" placeholder="Search…"
+            oninput="onSearchInput(this.value)"
+            style="padding:5px 10px 5px 27px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;font-family:inherit;width:160px;outline:none;transition:border-color 0.15s"
+            onfocus="this.style.borderColor='var(--accent-border)'" onblur="this.style.borderColor=''">
+        <button id="search-clear" onclick="clearSearch()" style="display:none;position:absolute;right:8px;background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;line-height:1;padding:2px">×</button>
+    </div>
+
+    <!-- Right-side actions -->
+    <div style="margin-left:auto;display:flex;gap:4px;align-items:center">
+        <!-- Curation tools -->
+        <button class="action-btn danger" onclick="showAutoRejectPanel()" title="Auto-skip technical failures based on pixel quality">
+            Clean Up
+        </button>
+        <button class="action-btn success" onclick="approveBestFromGroups(this)" title="Approve the best photo from each similar group">
+            Pick Best
+        </button>
+        <button class="action-btn" onclick="showRegroupPanel()" title="Re-run grouping with different sensitivity">
+            Regroup
+        </button>
+
+        <!-- Divider -->
+        <div style="width:1px;height:18px;background:var(--border);margin:0 3px;flex-shrink:0"></div>
+
+        <!-- Selection tools -->
+        <button class="action-btn accent" id="btn-compare-mode" onclick="toggleCompareMode(this)" title="Select photos to compare with Claude AI">
+            Select to Compare
+        </button>
+        <button class="action-btn accent" id="btn-select-all" onclick="selectAllVisible()" title="Select all visible photos (A)">
+            Select All
+        </button>
+
+        <!-- Divider -->
+        <div style="width:1px;height:18px;background:var(--border);margin:0 3px;flex-shrink:0"></div>
+
+        <button class="action-btn primary" id="btn-quick-review" onclick="enterQuickCull()" title="Quick Cull: ↑ Keep · ↓ Skip · ← → Navigate · Esc Exit">
+            ⚡ Quick Cull
+        </button>
+        <button class="action-btn" onclick="showShortcuts()" title="Keyboard shortcuts" style="padding:5px 9px">?</button>
+    </div>
 </div>
 
+<!-- Tip strip (dismissable) -->
+<div id="tip-strip" style="display:none;background:rgba(167,139,250,0.06);border-bottom:1px solid rgba(167,139,250,0.18);padding:9px 28px;font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:20px">
+    <span>💡 <strong style="color:var(--text)">Tips:</strong>
+        Click <span style="color:var(--accent)">☐ Select to Compare</span> then pick photos → Claude will analyze which is best.
+        Use <span style="color:var(--accent)">⚡ Quick Cull</span> to approve/skip with arrow keys.
+        Press <kbd style="background:rgba(255,255,255,0.08);border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-size:10px">?</kbd> for all shortcuts.
+    </span>
+    <button onclick="dismissTip()" style="margin-left:auto;background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:16px;line-height:1;flex-shrink:0" title="Dismiss">×</button>
+</div>
+
+<!-- ── Visual Search Banner ── -->
+<div id="visual-search-banner" style="display:none;background:rgba(167,139,250,0.10);border-bottom:1px solid rgba(167,139,250,0.3);padding:9px 28px;font-size:12px;color:var(--text-muted);align-items:center;gap:14px">
+    <span style="font-size:16px">🔍</span>
+    <span>Visual search: <strong id="vs-query-label" style="color:var(--accent)"></strong></span>
+    <span id="vs-count-label" style="color:var(--text-dim)"></span>
+    <button onclick="clearVisualSearch()" style="margin-left:auto;background:rgba(167,139,250,0.15);border:1px solid rgba(167,139,250,0.35);color:var(--accent);border-radius:12px;padding:3px 12px;font-size:11px;cursor:pointer;font-family:inherit">✕ Clear search</button>
+</div>
+
+<!-- ── Photo Grid ── -->
 <div class="photo-grid" id="photo-grid">
-    <div class="loading"><div class="spinner"></div><p>Loading photos...</p></div>
+    <div class="loading">
+        <div class="spinner"></div>
+        <p>Loading photos…</p>
+    </div>
 </div>
 
-<!-- Single Photo Modal (for non-group photos) -->
+<!-- ── Photo Detail Modal ── -->
 <div class="modal-overlay" id="modal" onclick="closeModalOutside(event)">
-    <div class="modal">
+
+    <!-- Nav arrows (rendered outside .modal so they float over overlay) -->
+    <button class="modal-nav prev" id="nav-prev" onclick="navPhoto(-1)" title="← Previous (left arrow)">&#8592;</button>
+    <button class="modal-nav next" id="nav-next" onclick="navPhoto(1)"  title="Next → (right arrow)">&#8594;</button>
+
+    <div class="modal" id="modal-inner">
         <div class="modal-image-container">
             <button class="modal-close" onclick="closeModal()">&times;</button>
-            <img class="modal-image" id="modal-image" src="" alt="">
+            <img class="modal-image" id="modal-image" src="" alt="" onclick="openFullscreen(currentPhotoId)" title="Click to view fullscreen">
         </div>
+
+        <!-- Compare similar strip (shown only when photo is in a group) -->
+        <div class="compare-strip" id="compare-strip" style="display:none">
+            <span class="compare-strip-label" id="compare-strip-label"></span>
+            <button class="btn-compare" id="compare-strip-btn" onclick="">View &amp; Compare Similar →</button>
+        </div>
+
         <div class="modal-content">
             <div class="modal-header">
-                <h2 class="modal-title" id="modal-title"></h2>
+                <div style="flex:1">
+                    <h2 class="modal-title" id="modal-title"></h2>
+                    <div class="modal-subtitle" id="modal-subtitle"></div>
+                </div>
                 <div class="modal-score" id="modal-score"></div>
             </div>
+
+            <!-- Cost display (after analysis) -->
+            <div class="cost-display" id="modal-cost" style="display:none">
+                <span id="cost-tokens"></span>
+                <span class="cost-actual" id="cost-amount"></span>
+            </div>
+
+            <!-- Summary -->
             <div class="analysis-section">
                 <div class="analysis-label">Why This Photo Stands Out</div>
                 <div class="analysis-text" id="modal-summary"></div>
             </div>
+
+            <!-- Score reasoning -->
             <div class="analysis-section" id="modal-reasoning-section" style="display:none">
                 <div class="analysis-label">Score Breakdown</div>
-                <div style="display:grid;gap:8px;margin-top:4px">
-                    <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:10px 12px">
-                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#22c55e;margin-bottom:4px">What Works</div>
+                <div style="display:grid;gap:8px;margin-top:6px">
+                    <div class="score-panel strengths">
+                        <div class="score-panel-label">What Works</div>
                         <div class="analysis-text" id="modal-strengths"></div>
                     </div>
-                    <div style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:10px 12px">
-                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#ef4444;margin-bottom:4px">What's Holding It Back</div>
+                    <div class="score-panel weaknesses">
+                        <div class="score-panel-label">What's Holding It Back</div>
                         <div class="analysis-text" id="modal-weaknesses"></div>
                     </div>
                 </div>
             </div>
+
+            <!-- Composition -->
             <div class="analysis-section">
                 <div class="analysis-label">Composition</div>
                 <div class="analysis-text" id="modal-composition"></div>
             </div>
+
+            <!-- Technical -->
             <div class="analysis-section">
                 <div class="analysis-label">Technical Quality</div>
                 <div class="analysis-text" id="modal-technical"></div>
             </div>
+
+            <!-- Mood & Story -->
             <div class="analysis-section">
                 <div class="analysis-label">Mood &amp; Story</div>
                 <div class="analysis-text" id="modal-mood"></div>
             </div>
+
+            <!-- Eyes / Expression (portrait shots) -->
             <div class="analysis-section" id="modal-eyes-section" style="display:none">
-                <div class="analysis-label">👁 Eyes / Expression Check</div>
+                <div class="analysis-label">Eyes / Expression Check</div>
                 <div class="analysis-text" id="modal-eyes"></div>
             </div>
+
+            <!-- Editing Tips -->
             <div class="analysis-section" id="modal-tips-section" style="display:none">
-                <div class="analysis-label">✏️ Editing Tips</div>
-                <div id="modal-tips" style="display:flex;flex-direction:column;gap:6px;margin-top:4px"></div>
+                <div class="analysis-label">Editing Tips</div>
+                <div id="modal-tips" style="display:flex;flex-direction:column;gap:6px;margin-top:6px"></div>
             </div>
+
+            <!-- Recommended Use -->
             <div class="analysis-section">
                 <div class="analysis-label">Recommended Use</div>
                 <div class="analysis-text" id="modal-use"></div>
             </div>
+
+            <!-- EXIF / Camera Settings -->
+            <div id="modal-exif" style="display:none;margin:10px 0 4px;padding:10px 14px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;display:flex;flex-wrap:wrap;gap:14px">
+            </div>
+
             <div class="file-info" id="modal-fileinfo"></div>
         </div>
+
         <div class="modal-actions" id="modal-actions"></div>
     </div>
 </div>
 
+<!-- ── Import Client Picks Modal ── -->
+<div class="modal-overlay" id="import-picks-modal" onclick="if(event.target===this)closeImportPicks()" style="display:none">
+<style>
+#import-picks-modal { display:none }
+#import-picks-modal.active { display:flex }
+</style>
+<div class="modal" style="max-width:520px">
+    <div style="padding:24px 26px 0">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+                <div style="font-size:17px;font-weight:700">Import Client Picks</div>
+                <div style="font-size:12px;color:var(--text-dim);margin-top:3px">Paste the email your client sent you</div>
+            </div>
+            <button class="modal-close" style="position:static;width:30px;height:30px;font-size:15px" onclick="closeImportPicks()">×</button>
+        </div>
+    </div>
+    <div style="padding:18px 26px 24px">
+        <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px;line-height:1.65">
+            When your client clicks "Send My Picks", it opens an email with their selections.
+            Paste the full email below — Cullo will find the
+            <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px;font-size:11px">[PICKS:...]</code>
+            code automatically.
+        </p>
+        <textarea id="picks-textarea"
+            placeholder="Paste the client's email here…"
+            style="width:100%;height:150px;background:var(--bg);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:13px;padding:12px;font-family:inherit;resize:vertical;outline:none;transition:border-color 0.2s"
+            onfocus="this.style.borderColor='var(--accent-border)'"
+            onblur="this.style.borderColor='var(--border)'"></textarea>
+        <div style="display:flex;gap:10px;margin-top:12px;justify-content:flex-end">
+            <button onclick="closeImportPicks()" class="btn btn-ghost" style="padding:9px 18px">Cancel</button>
+            <button onclick="submitClientPicks()" class="btn btn-primary" style="padding:9px 18px;background:#f43f5e">Import Picks ♥</button>
+        </div>
+    </div>
+</div>
+</div>
+
 <div class="toast" id="toast"></div>
 
-<script>
-let groups = [];
-let currentFilter = 'all';
-let currentPhotoId = null;
+<!-- ── Similar Shots Group Overlay ── -->
+<div id="group-overlay" onclick="if(event.target===this)closeGroupOverlay()">
+    <div class="go-panel">
+        <div class="go-header">
+            <div style="flex:1">
+                <div class="go-title" id="go-title">Similar Shots</div>
+                <div class="go-count" id="go-count"></div>
+            </div>
+            <button onclick="closeGroupOverlay()" style="background:none;border:none;color:var(--text-dim);font-size:22px;cursor:pointer;line-height:1;padding:4px">×</button>
+        </div>
+        <div class="go-grid" id="go-grid"></div>
+        <div class="go-footer">
+            <button id="go-cull-btn" class="btn btn-ghost" style="padding:9px 16px;font-size:13px">⚡ Quick Cull These</button>
+            <button id="go-compare-btn" class="btn btn-primary" style="padding:9px 16px;background:var(--accent);font-size:13px">✦ Compare All →</button>
+        </div>
+    </div>
+</div>
 
-async function loadGroups() {
+<!-- ── Chatbot ── -->
+<button id="chat-fab" onclick="toggleChat()" title="Chat with your AI assistant">💬</button>
+<div id="chat-panel">
+    <div class="chat-hdr">
+        <div class="chat-hdr-dot"></div>
+        <div class="chat-hdr-title">Cullo Assistant</div>
+        <div class="chat-hdr-sub" id="chat-cost-sub">Claude-powered</div>
+    </div>
+    <div class="chat-msgs" id="chat-msgs"></div>
+    <div class="chat-input-row">
+        <textarea id="chat-input" class="chat-input" placeholder="Ask anything about your shoot…"
+            onkeydown="chatKeydown(event)" rows="1"
+            oninput="this.style.height='';this.style.height=Math.min(this.scrollHeight,80)+'px'"></textarea>
+        <button id="chat-send" onclick="sendChat(document.getElementById('chat-input').value)">↑</button>
+    </div>
+</div>
+
+<!-- ── Auto-Reject Panel ── -->
+<div id="autoreject-panel" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);z-index:4000;align-items:center;justify-content:center" onclick="if(event.target===this)hideAutoRejectPanel()">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px 32px;width:min(440px,94vw)" onclick="event.stopPropagation()">
+        <div style="font-size:16px;font-weight:700;margin-bottom:6px">🗑 Clean Up Technical Failures</div>
+        <div style="font-size:13px;color:var(--text-dim);margin-bottom:18px">Skips unreviewed photos based on <strong style="color:var(--text)">pixel quality only</strong> — sharpness, exposure, resolution, and contrast. Ignores Claude's score, so technically poor shots are caught even if Claude liked the composition.</div>
+        <div style="margin-bottom:18px">
+            <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px">Skip photos with quality below <strong id="ar-thresh-val">35</strong> / 100</label>
+            <input type="range" id="ar-thresh" min="10" max="80" step="5" value="35"
+                oninput="document.getElementById('ar-thresh-val').textContent=this.value;previewAutoReject()"
+                style="width:100%;accent-color:var(--accent)">
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-top:4px">
+                <span>Gentle (obvious failures only)</span><span>Strict (catches more)</span>
+            </div>
+        </div>
+        <div id="ar-preview" style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--text-muted);margin-bottom:18px;min-height:44px">
+            Loading preview…
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button onclick="hideAutoRejectPanel()" class="btn btn-ghost" style="padding:8px 18px;font-size:13px">Cancel</button>
+            <button id="ar-apply-btn" onclick="applyAutoReject()" class="btn btn-danger" style="padding:8px 18px;font-size:13px;background:rgba(239,68,68,0.8);border:none;color:white;border-radius:8px;cursor:pointer;font-family:inherit">Skip These Photos</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Regroup Panel ── -->
+<div id="regroup-panel" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);z-index:4000;align-items:center;justify-content:center" onclick="if(event.target===this)hideRegroupPanel()">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px 32px;width:min(420px,94vw)" onclick="event.stopPropagation()">
+        <div style="font-size:16px;font-weight:700;margin-bottom:6px">⟳ Re-run Grouping</div>
+        <div style="font-size:13px;color:var(--text-dim);margin-bottom:20px">Adjusting the threshold changes how strictly photos must match to be grouped together. Lower = tighter groups (only near-identical shots). Higher = broader groups (similar scenes).</div>
+        <div style="margin-bottom:18px">
+            <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px">Threshold: <strong id="thresh-val">8</strong> / 64 bits</label>
+            <input type="range" id="thresh-slider" min="4" max="18" value="8" step="1"
+                oninput="document.getElementById('thresh-val').textContent=this.value"
+                style="width:100%;accent-color:var(--accent)">
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-top:4px">
+                <span>Tighter (fewer groups)</span><span>Looser (more groups)</span>
+            </div>
+        </div>
+        <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:8px;padding:10px 14px;font-size:12px;color:rgba(239,68,68,0.85);margin-bottom:18px">
+            ⚠ This will replace your current groups. Your approved/skipped decisions are safe.
+        </div>
+        <!-- Progress bar (hidden until running) -->
+        <div id="regroup-progress" style="display:none;margin-bottom:16px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+                <span style="font-size:11px;color:var(--text-dim)" id="regroup-msg">Starting…</span>
+            </div>
+            <div style="height:6px;background:var(--border);border-radius:4px;overflow:hidden">
+                <div id="regroup-bar" style="height:100%;width:0%;background:var(--accent);border-radius:4px;transition:width 0.3s ease"></div>
+            </div>
+        </div>
+
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button onclick="hideRegroupPanel()" class="btn btn-ghost" style="padding:8px 18px;font-size:13px">Cancel</button>
+            <button id="regroup-run-btn" onclick="runRegroup()" class="btn btn-primary" style="padding:8px 18px;font-size:13px;background:var(--accent)">Re-run Grouping</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Fullscreen Zoom Overlay ── -->
+<div id="fullscreen-zoom">
+    <button class="fz-close" onclick="closeFullscreen()">&times;</button>
+    <button class="fz-nav prev" id="fz-prev" onclick="fzNav(-1)">&#8592;</button>
+    <button class="fz-nav next" id="fz-next" onclick="fzNav(1)">&#8594;</button>
+    <img id="fz-img" src="" alt="" onclick="closeFullscreen()">
+    <div class="fz-flash green" id="fz-flash-green"></div>
+    <div class="fz-flash red"   id="fz-flash-red"></div>
+    <div class="fz-label keep"  id="fz-label-keep">KEEP ↑</div>
+    <div class="fz-label skip"  id="fz-label-skip">SKIP ↓</div>
+    <div class="fz-bar">
+        <div class="fz-bar-title" id="fz-bar-title"></div>
+        <div class="fz-bar-score" id="fz-bar-score"></div>
+        <button class="fz-skip"    onclick="fzAction('reject')">Skip ↓</button>
+        <button class="fz-approve" onclick="fzAction('approve')">Keep ↑</button>
+        <div class="fz-bar-hints">← → Navigate &nbsp;·&nbsp; Esc Close</div>
+    </div>
+</div>
+
+<!-- ── Multi-Select Action Bar ── -->
+<div id="select-bar">
+    <div style="display:flex;flex-direction:column;gap:1px;flex-shrink:0">
+        <span style="font-size:11px;color:var(--text-dim)" id="sel-desc">selected</span>
+        <span style="font-size:13px;font-weight:700;color:var(--text)"><span class="sel-count" id="sel-count">0</span> photos</span>
+    </div>
+    <div style="width:1px;height:32px;background:var(--border);flex-shrink:0"></div>
+    <button class="btn btn-ghost" id="sel-approve-btn" onclick="approveAllSelected()"
+        style="border-radius:20px;font-size:12px;padding:7px 16px;border-color:rgba(34,197,94,0.4);color:rgba(34,197,94,0.9)"
+        title="Approve all selected photos">✓ Approve</button>
+    <button class="btn btn-ghost" id="sel-skip-btn" onclick="skipAllSelected()"
+        style="border-radius:20px;font-size:12px;padding:7px 16px;border-color:rgba(239,68,68,0.4);color:rgba(239,68,68,0.8)"
+        title="Skip all selected photos">✕ Skip</button>
+    <button class="btn btn-ghost" id="sel-unskip-btn" onclick="unskipAllSelected()"
+        style="display:none;border-radius:20px;font-size:12px;padding:7px 16px;border-color:rgba(255,180,60,0.4);color:rgba(255,180,60,0.9)"
+        title="Restore skipped photos to pending">↩ Unskip</button>
+    <div style="width:1px;height:32px;background:var(--border);flex-shrink:0"></div>
+    <button class="btn btn-ghost" id="sel-analyze-btn" onclick="analyzeAndCompareSelected()" style="border-radius:20px;font-size:12px;padding:7px 16px">✦ Analyze &amp; Compare</button>
+    <button class="btn btn-primary" onclick="compareSelected()" style="border-radius:20px;font-size:12px;padding:7px 16px;background:var(--accent)">Compare →</button>
+    <button class="btn btn-ghost" onclick="groupSelected()" style="border-radius:20px;font-size:12px;padding:7px 16px" title="Create a new group from these selected photos">＋ Group</button>
+    <button onclick="clearSelection()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:18px;line-height:1;padding:4px;flex-shrink:0" title="Clear selection">×</button>
+</div>
+
+<!-- ── Keyboard Shortcuts Overlay ── -->
+<div id="shortcuts-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);z-index:3000;align-items:center;justify-content:center" onclick="hideShortcuts()">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px 32px;width:min(480px,94vw);max-height:90vh;overflow-y:auto" onclick="event.stopPropagation()">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+            <div style="font-size:17px;font-weight:700">Keyboard Shortcuts</div>
+            <button onclick="hideShortcuts()" style="background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer">×</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:13px">
+            <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);font-weight:600;margin-top:4px;margin-bottom:2px">When viewing a photo</div>
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-muted)">Navigate photos</span><span><kbd style="background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;padding:2px 7px;font-family:monospace;font-size:11px">←</kbd> <kbd style="background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;padding:2px 7px;font-family:monospace;font-size:11px">→</kbd></span></div>
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-muted)">Approve / Add to website</span><span><kbd style="background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);border-radius:4px;padding:2px 7px;font-family:monospace;font-size:11px;color:var(--green)">A</kbd></span></div>
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-muted)">Skip photo</span><span><kbd style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:4px;padding:2px 7px;font-family:monospace;font-size:11px;color:var(--red)">S</kbd></span></div>
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-muted)">Close</span><span><kbd style="background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;padding:2px 7px;font-family:monospace;font-size:11px">Esc</kbd></span></div>
+            <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);font-weight:600;margin-top:12px;margin-bottom:2px">Fullscreen view (click photo)</div>
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-muted)">Keep / Skip</span><span><kbd style="background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);border-radius:4px;padding:2px 7px;font-family:monospace;font-size:11px;color:var(--green)">↑</kbd> <kbd style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:4px;padding:2px 7px;font-family:monospace;font-size:11px;color:var(--red)">↓</kbd></span></div>
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-muted)">Navigate photos</span><span><kbd style="background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;padding:2px 7px;font-family:monospace;font-size:11px">←</kbd> <kbd style="background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;padding:2px 7px;font-family:monospace;font-size:11px">→</kbd></span></div>
+            <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);font-weight:600;margin-top:12px;margin-bottom:2px">Quick Cull mode (⚡)</div>
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-muted)">Keep & next</span><span><kbd style="background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);border-radius:4px;padding:2px 7px;font-family:monospace;font-size:11px;color:var(--green)">↑</kbd></span></div>
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-muted)">Skip & next</span><span><kbd style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:4px;padding:2px 7px;font-family:monospace;font-size:11px;color:var(--red)">↓</kbd></span></div>
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-muted)">Navigate (no action)</span><span><kbd style="background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;padding:2px 7px;font-family:monospace;font-size:11px">←</kbd> <kbd style="background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;padding:2px 7px;font-family:monospace;font-size:11px">→</kbd></span></div>
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-muted)">Exit Quick Review</span><span><kbd style="background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;padding:2px 7px;font-family:monospace;font-size:11px">Esc</kbd></span></div>
+            <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);font-weight:600;margin-top:12px;margin-bottom:2px">Always</div>
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-muted)">Undo last skip / approve</span><span><kbd style="background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;padding:2px 7px;font-family:monospace;font-size:11px">U</kbd></span></div>
+            <div style="display:flex;justify-content:space-between;padding:7px 0"><span style="color:var(--text-muted)">Show this help</span><span><kbd style="background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;padding:2px 7px;font-family:monospace;font-size:11px">?</kbd></span></div>
+        </div>
+        <div style="margin-top:18px;padding:12px;background:var(--accent-dim);border:1px solid var(--accent-border);border-radius:8px;font-size:12px;color:var(--text-muted)">
+            💡 <strong style="color:var(--accent)">Pro tip:</strong> Click the <strong>☐ Select to Compare</strong> button, then click photos to pick your favorites — Claude will analyze them side-by-side and tell you which is best.
+        </div>
+    </div>
+</div>
+
+<!-- ── Quick Cull Overlay ── -->
+<div id="cull-overlay">
+    <div class="cull-progress">
+        <strong id="cull-cur">1</strong> / <span id="cull-total">0</span>
+        &nbsp;·&nbsp; <span id="cull-kept" style="color:var(--green)">0 kept</span>
+        &nbsp;·&nbsp; <span id="cull-skipped" style="color:var(--red)">0 skipped</span>
+    </div>
+    <button class="cull-exit" onclick="exitQuickCull()">✕ Exit (Esc)</button>
+
+    <div class="cull-photo-wrap" id="cull-photo-wrap">
+        <img id="cull-img" src="" alt="">
+        <div class="cull-flash green" id="cull-flash-green"></div>
+        <div class="cull-flash red"   id="cull-flash-red"></div>
+        <div class="cull-dir-label keep" id="cull-label-keep">KEEP ↑</div>
+        <div class="cull-dir-label skip" id="cull-label-skip">SKIP ↓</div>
+    </div>
+
+    <div class="cull-info">
+        <div class="cull-score" id="cull-score"></div>
+        <div class="cull-name"  id="cull-name"></div>
+        <div class="cull-status" id="cull-status"></div>
+    </div>
+
+    <div class="cull-hints">
+        <span><kbd>↑</kbd> Keep &amp; next</span>
+        <span><kbd>↓</kbd> Skip &amp; next</span>
+        <span><kbd>←</kbd> Previous</span>
+        <span><kbd>→</kbd> Next</span>
+        <span><kbd>Esc</kbd> Exit</span>
+    </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let allPhotos    = [];   // all analyzed photos from /api/photos (sorted by score)
+let allGroups    = [];   // groups from /api/groups
+let groupsByPhotoId = {}; // photoId -> group (for lookup)
+let currentFilter   = 'all';
+let currentSort     = 'score';  // 'score' | 'local' | 'filename'
+let currentPhotoId  = null;
+let currentPage     = 1;
+let currentListIds  = []; // ordered list of photo IDs in current view
+let sessionCost     = 0;
+let selectedIds     = new Set(); // multi-select
+let lastAction      = null;       // { id, prev } for U-key undo
+let goSelectedIds   = new Set();  // selection state inside group overlay
+let searchQuery     = '';         // current search/filter string
+let visualSearchIds = null;       // Set of photo IDs from visual search (null = off)
+let visualSearchQuery = '';       // the query that produced the current visual search
+const PAGE_SIZE     = 20;
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+async function init() {
     try {
-        const [gr, sr] = await Promise.all([fetch('/api/groups'), fetch('/api/stats')]);
-        groups = await gr.json();
+        const [pr, gr, sr] = await Promise.all([
+            fetch('/api/photos'),
+            fetch('/api/groups'),
+            fetch('/api/stats'),
+        ]);
+        allPhotos = await pr.json();
+        allGroups = await gr.json();
         const stats = await sr.json();
+
+        // Build photo->group lookup
+        groupsByPhotoId = {};
+        for (const g of allGroups) {
+            if (g.is_group && g.photo_ids.length > 1) {
+                for (const pid of g.photo_ids) {
+                    groupsByPhotoId[pid] = g;
+                }
+            }
+        }
+
+        // Update header stats
         document.getElementById('stat-approved').textContent = stats.approved;
         document.getElementById('stat-rejected').textContent = stats.rejected;
-        document.getElementById('stat-pending').textContent = stats.pending;
+        document.getElementById('stat-pending').textContent  = stats.pending;
+
+        // Show client picks filter if any
+        const clientCount = allPhotos.filter(p => p.client_pick).length;
+        const clientBtn = document.getElementById('filter-btn-client');
+        if (clientCount > 0) {
+            clientBtn.style.display = '';
+            clientBtn.textContent = `Client Picks ♥ (${clientCount})`;
+            clientBtn.style.color = '#f43f5e';
+            const importBtn = document.getElementById('btn-import-picks');
+            importBtn.textContent = `Picks (${clientCount}) ♥`;
+            importBtn.style.color = '#f43f5e';
+        }
+
         renderGrid();
-    } catch {
+    } catch(err) {
         document.getElementById('photo-grid').innerHTML =
-            '<div class="empty-state"><h2>Could not load photos</h2><p>Make sure Steps 1 and 2 have been run.</p></div>';
+            `<div class="empty-state"><h2>Could not load photos</h2><p>${err.message || 'Make sure Steps 1 and 2 have been run.'}</p></div>`;
     }
 }
 
+// ── Filtering ──────────────────────────────────────────────────────────────
+function getFilteredPhotos() {
+    if (currentFilter === 'groups') return null; // handled separately
+    let list = allPhotos;
+
+    // Visual search overrides the normal filter
+    if (visualSearchIds !== null) {
+        list = allPhotos.filter(p => visualSearchIds.has(p.id));
+        return list; // no dedup needed — show all matches including group members
+    }
+
+    if (currentFilter === 'all')      list = allPhotos.filter(p => p.approved !== false && p.claude_analysis && !(p.claude_analysis||{}).error);
+    if (currentFilter === 'pending')  list = allPhotos.filter(p => p.approved == null);
+    if (currentFilter === 'approved') list = allPhotos.filter(p => p.approved === true);
+    if (currentFilter === 'rejected') list = allPhotos.filter(p => p.approved === false);
+    if (currentFilter === 'client')   list = allPhotos.filter(p => p.client_pick);
+
+    // Apply sort (Top Photos only — others keep server order)
+    if (currentFilter === 'all') {
+        if (currentSort === 'score')    list = [...list].sort((a,b) => ((b.claude_analysis||{}).score||0) - ((a.claude_analysis||{}).score||0));
+        if (currentSort === 'local')    list = [...list].sort((a,b) => (b.overall_score||0) - (a.overall_score||0));
+        if (currentSort === 'filename') list = [...list].sort((a,b) => a.filename.localeCompare(b.filename));
+    }
+
+    // Text search across analysis fields
+    if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        list = list.filter(p => {
+            const a = p.claude_analysis || {};
+            const txt = [p.filename, a.title, a.summary, a.best_use,
+                         (a.composition_notes || ''), (a.subject_notes || '')]
+                        .join(' ').toLowerCase();
+            return txt.includes(q);
+        });
+    }
+
+    // Deduplicate groups: only show ONE card per group (the highest-scoring photo,
+    // which naturally appears first since allPhotos is sorted by score desc).
+    // Only deduplicate if the group has 2+ photos that actually exist in allPhotos.
+    const seenGroups = new Set();
+    const deduped = [];
+    for (const p of list) {
+        const g = groupsByPhotoId[p.id];
+        if (g) {
+            const actualCount = (g.photo_ids || []).filter(id => allPhotos.some(p2 => p2.id === id)).length;
+            if (actualCount > 1) {
+                if (seenGroups.has(g.id)) continue;
+                seenGroups.add(g.id);
+            }
+        }
+        deduped.push(p);
+    }
+    return deduped;
+}
+
+function getFilteredGroups() {
+    return allGroups.filter(g => g.is_group && g.photo_ids.length > 1);
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────
 function renderGrid() {
     const grid = document.getElementById('photo-grid');
-    let list = groups;
 
-    if (currentFilter === 'groups')   list = groups.filter(g => g.is_group && g.photo_ids.length > 1);
-    if (currentFilter === 'pending')  list = groups.filter(g => g.approved == null);
-    if (currentFilter === 'approved') list = groups.filter(g => g.approved === true);
-    if (currentFilter === 'rejected') list = groups.filter(g => g.approved === false);
-
-    if (!list.length) {
-        grid.innerHTML = '<div class="empty-state"><h2>Nothing here</h2><p>Try a different filter.</p></div>';
+    if (currentFilter === 'groups') {
+        renderGroupsView(grid);
         return;
     }
 
-    grid.innerHTML = list.map(group => {
+    const list = getFilteredPhotos();
+    currentListIds = list.map(p => p.id);
+
+    if (!list.length) {
+        grid.innerHTML = '<div class="empty-state"><h2>Nothing here</h2><p>Try a different filter.</p></div>';
+        renderPager(0, 0);
+        return;
+    }
+
+    const totalPages = Math.ceil(list.length / PAGE_SIZE);
+    if (currentPage > totalPages) currentPage = totalPages;
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const page  = list.slice(start, start + PAGE_SIZE);
+
+    grid.innerHTML = page.map(p => photoCard(p)).join('');
+    renderPager(list.length, totalPages);
+    window.scrollTo(0, 0);
+}
+
+function photoCard(p) {
+    const a = p.claude_analysis || {};
+    const score = a.score || 0;
+    const scoreClass = score >= 7.5 ? 'high' : score >= 5.5 ? 'medium' : 'low';
+    const isAnalyzed = !!(a.score);
+    const statusClass = p.approved === true ? 'approved' : p.approved === false ? 'rejected' : '';
+    const statusLabel = p.approved === true ? 'Approved' : p.approved === false ? 'Skipped' : '';
+    const title = a.title || p.filename;
+    const summary = a.summary || 'Not yet analyzed by Claude.';
+
+    // Group / stack
+    const group = groupsByPhotoId[p.id];
+    // Actual count = only IDs that exist in allPhotos (groups.json may have stale IDs)
+    const actualGroupCount = group
+        ? (group.photo_ids || []).filter(id => allPhotos.some(p2 => p2.id === id)).length
+        : 0;
+    const isStacked = actualGroupCount > 1;
+    // Card always opens the photo — the "similar shots" link in card-info opens the overlay
+    const cardClick = `openPhoto(${p.id})`;
+
+    const groupBadge = isStacked ? `<div class="group-badge">${actualGroupCount} similar</div>` : '';
+    const clientBadge = p.client_pick ? `<div class="group-badge" style="left:10px;right:auto;background:rgba(244,63,94,0.85)">♥ Client</div>` : '';
+
+    // Flip back face content
+    const flipBack = isAnalyzed
+        ? `<div class="flip-score">${score}/10</div>
+           <div class="flip-summary">${escHtml(summary)}</div>
+           <div class="flip-tag">${escHtml(a.best_use || '')}</div>`
+        : `<div class="flip-unanalyzed">Not yet analyzed</div>
+           <button class="flip-analyze-btn" onclick="analyzeFromCard(${p.id}, event)">✦ Analyze with Claude</button>`;
+
+    const isSelected = selectedIds.has(p.id);
+    return `
+        <div class="photo-card ${statusClass}${isSelected ? ' selected' : ''}${isStacked ? ' group-stack' : ''}"
+             onclick="${cardClick}">
+            <button class="select-cb" onclick="toggleSelect(${p.id},event)" title="Select for comparison">${isSelected ? '✓' : ''}</button>
+
+            <div class="img-flip">
+                ${groupBadge}${clientBadge}
+                <div class="img-flip-inner" id="imgflip-${p.id}">
+                    <div class="img-flip-front">
+                        <img class="card-image" src="/thumb/${p.id}" alt="${escHtml(title)}" loading="lazy"
+                             style="${isAnalyzed ? '' : 'filter:saturate(0.45)'}">
+                        <div class="card-hover-actions">
+                            <button class="card-hover-btn" onclick="flipCard(${p.id}, event)">
+                                ${isAnalyzed ? '↩ View Analysis' : '✦ Analyze'}
+                            </button>
+                            <button class="card-hover-btn" onclick="event.stopPropagation();openFullscreen(${p.id})">⛶ Full Screen</button>
+                        </div>
+                    </div>
+                    <div class="img-flip-back">
+                        ${flipBack}
+                        <button class="flip-back-close" onclick="unflipCard(${p.id}, event)">← Back to Photo</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-info">
+                <div class="card-title">${escHtml(title)}</div>
+                <div class="card-score">
+                    ${isAnalyzed
+                        ? `<span class="score-badge ${scoreClass}">${score}/10</span>
+                           <span style="font-size:11px;color:var(--text-dim)">${a.best_use || ''}</span>`
+                        : `<span style="font-size:11px;color:var(--text-dim);border:1px solid var(--border);border-radius:8px;padding:2px 8px">Not yet analyzed</span>`
+                    }
+                </div>
+                <div class="card-summary">${escHtml(summary)}</div>
+                ${isStacked ? `<div class="group-hint" onclick="openGroupOverlay('${group.id}', event)">See all ${actualGroupCount} similar shots →</div>` : ''}
+            </div>
+            ${p.approved === true
+                ? `<div class="card-status status-approved undoable" onclick="undoApprove(${p.id},event)" title="Click to remove from approved">
+                       <span class="skipped-txt">Approved</span>
+                       <span class="undo-txt">↩ Remove</span>
+                   </div>`
+                : p.approved === false
+                ? `<div class="card-status status-rejected undoable" onclick="undoSkip(${p.id},event)" title="Click to restore to pending">
+                       <span class="skipped-txt">Skipped</span>
+                       <span class="undo-txt">↩ Restore</span>
+                   </div>`
+                : ''}
+        </div>
+    `;
+}
+
+function renderGroupsView(grid) {
+    const groups = getFilteredGroups();
+    currentListIds = [];
+
+    if (!groups.length) {
+        grid.innerHTML = '<div class="empty-state"><h2>No similar groups found</h2><p>Run "Group Similar" from the run menu to cluster burst shots together.</p></div>';
+        renderPager(0, 0);
+        return;
+    }
+
+    const totalPages = Math.ceil(groups.length / PAGE_SIZE);
+    if (currentPage > totalPages) currentPage = totalPages;
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const page  = groups.slice(start, start + PAGE_SIZE);
+
+    grid.innerHTML = page.map(group => {
         const best = group.best_photo;
+        if (!best) return '';
         const a = best.claude_analysis || {};
         const score = a.score || 0;
         const scoreClass = score >= 7.5 ? 'high' : score >= 5.5 ? 'medium' : 'low';
-        const isMulti = group.is_group && group.photo_ids.length > 1;
-        const statusClass = group.approved === true ? 'approved' : group.approved === false ? 'rejected' : '';
         const count = group.photo_ids.length;
-        const title = isMulti ? group.theme : (a.title || best.filename);
-        const summary = a.summary || '';
-        const statusLabel = group.approved === true ? 'Approved' : group.approved === false ? 'Skipped' : '';
+        const analyzedCount = group.analyzed_count || 0;
+        const statusClass = group.approved === true ? 'approved' : group.approved === false ? 'rejected' : '';
+        const isAnalyzed = !!(a.score);
 
         return `
-            <div class="photo-card ${statusClass} ${isMulti ? 'group-stack' : ''}"
-                 onclick="${isMulti ? `goCompare('${group.id}')` : `openSingle(${best.id})`}"
-                 style="cursor:pointer">
-                ${isMulti ? `<div class="group-badge">${count} shots</div>` : ''}
-                <img class="card-image" src="/photo/${best.id}" alt="${title}" loading="lazy">
+            <div class="photo-card group-stack ${statusClass}"
+                 onclick="window.location.href='/compare/${group.id}'" style="cursor:pointer">
+                <div class="group-badge">${count} shots</div>
+                <img class="card-image" src="/thumb/${best.id}" alt="${escHtml(group.theme || '')}" loading="lazy">
+                <div class="group-cta-overlay"><span style="background:var(--accent);color:white;font-size:13px;font-weight:700;padding:8px 18px;border-radius:20px">Compare ${count} Shots →</span></div>
                 <div class="card-info">
-                    <div class="card-title">${title}</div>
-                    <div class="card-score">
-                        <span class="score-badge ${scoreClass}">${score}/10</span>
-                        <span style="font-size:12px;color:var(--text-muted)">${isMulti ? `${count} similar shots` : (a.best_use || '')}</span>
+                    <div class="card-title">${escHtml(group.theme || a.title || best.filename)}</div>
+                    <div class="card-score" style="gap:6px;flex-wrap:wrap">
+                        ${isAnalyzed
+                            ? `<span class="score-badge ${scoreClass}">${score}/10 best</span>`
+                            : `<span style="font-size:11px;color:var(--text-dim);border:1px solid var(--border);border-radius:8px;padding:2px 8px">Not analyzed</span>`
+                        }
+                        <span style="font-size:10px;color:var(--text-dim);border:1px solid var(--border);border-radius:8px;padding:2px 7px">${analyzedCount}/${count} analyzed</span>
                     </div>
-                    <div class="card-summary">${summary}</div>
-                    ${isMulti ? `<div class="group-hint">Click to compare all ${count} shots side by side →</div>` : ''}
+                    <div class="card-summary">${escHtml(a.summary || 'Click to compare all shots in this group.')}</div>
+                    <div class="group-hint">Compare all ${count} shots →</div>
                 </div>
-                ${statusLabel ? `<div class="card-status status-${group.approved === true ? 'approved' : 'rejected'}">${statusLabel}</div>` : ''}
+                ${group.approved === true ? '<div class="card-status status-approved">Approved</div>' : ''}
+                ${group.approved === false ? '<div class="card-status status-rejected">Skipped</div>' : ''}
             </div>
         `;
     }).join('');
+
+    renderPager(groups.length, totalPages);
+    window.scrollTo(0, 0);
+}
+
+function renderPager(total, totalPages) {
+    let el = document.getElementById('pager');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'pager';
+        el.className = 'pager';
+        document.getElementById('photo-grid').after(el);
+    }
+    if (totalPages <= 1) { el.innerHTML = ''; return; }
+    el.innerHTML = `
+        <button class="pager-btn" onclick="goPage(${currentPage-1})" ${currentPage===1?'disabled':''}>← Prev</button>
+        <span class="pager-info">Page ${currentPage} of ${totalPages} · ${total} photos</span>
+        <button class="pager-btn" onclick="goPage(${currentPage+1})" ${currentPage===totalPages?'disabled':''}>Next →</button>
+    `;
+}
+
+function goPage(n) {
+    currentPage = n;
+    history.pushState({ filter: currentFilter, page: n, search: searchQuery }, '');
+    renderGrid();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function setSort(val) {
+    currentSort = val;
+    currentPage = 1;
+    renderGrid();
 }
 
 function setFilter(f, btn) {
     currentFilter = f;
+    currentPage   = 1;
+    if (visualSearchIds !== null) clearVisualSearch(false);
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
+    document.getElementById('sort-wrap').style.display = f === 'all' ? 'flex' : 'none';
+    history.pushState({ filter: f, page: 1, search: searchQuery }, '');
     renderGrid();
 }
 
-function goCompare(groupId) {
-    window.location.href = `/compare/${groupId}`;
+// Restore state when browser back/forward is used
+window.addEventListener('popstate', e => {
+    if (!e.state) return;
+    const { filter, page, search } = e.state;
+    currentFilter = filter || 'all';
+    currentPage   = page   || 1;
+    searchQuery   = search || '';
+    document.getElementById('photo-search').value = searchQuery;
+    document.getElementById('search-clear').style.display = searchQuery ? 'block' : 'none';
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    const activeBtn = document.querySelector(`.filter-btn[onclick*="'${currentFilter}'"]`);
+    if (activeBtn) activeBtn.classList.add('active');
+    document.getElementById('sort-wrap').style.display = currentFilter === 'all' ? 'flex' : 'none';
+    renderGrid();
+});
+
+function showVisualSearchResults(ids, query) {
+    visualSearchIds   = new Set(ids);
+    visualSearchQuery = query;
+    currentPage       = 1;
+    // Show banner
+    const banner = document.getElementById('visual-search-banner');
+    banner.style.display = 'flex';
+    document.getElementById('vs-query-label').textContent = `"${query}"`;
+    document.getElementById('vs-count-label').textContent = ids.length === 0
+        ? 'No matching photos found'
+        : `${ids.length} photo${ids.length !== 1 ? 's' : ''} found`;
+    // Clear active filter buttons so UI isn't misleading
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    renderGrid();
 }
 
-function openSingle(photoId) {
-    let photo = null;
-    for (const g of groups) {
-        const f = g.photos.find(p => p.id === photoId);
-        if (f) { photo = f; break; }
-    }
+function clearVisualSearch(rerender = true) {
+    visualSearchIds   = null;
+    visualSearchQuery = '';
+    document.getElementById('visual-search-banner').style.display = 'none';
+    // Restore the active filter button
+    const active = document.querySelector(`.filter-btn[onclick*="'${currentFilter}'"]`);
+    if (active) active.classList.add('active');
+    if (rerender) { currentPage = 1; renderGrid(); }
+}
+
+// ── Photo Modal ─────────────────────────────────────────────────────────────
+function openPhoto(photoId) {
+    const photo = allPhotos.find(p => p.id === photoId);
     if (!photo) return;
     currentPhotoId = photoId;
+
+    populateModal(photo);
+    updateNavButtons();
+    document.getElementById('modal').classList.add('active');
+    document.body.style.overflow = 'hidden';
+    loadExif(photoId); // async, fills in camera settings quietly
+}
+
+function populateModal(photo) {
     const a = photo.claude_analysis || {};
     const r = a.score_reasoning || {};
 
-    document.getElementById('modal-image').src = `/photo/${photoId}`;
+    document.getElementById('modal-image').src = `/photo/${photo.id}`;
     document.getElementById('modal-title').textContent = a.title || photo.filename;
-    document.getElementById('modal-score').textContent = `${a.score || '?'}/10`;
-    document.getElementById('modal-summary').textContent = a.summary || '-';
-    document.getElementById('modal-composition').textContent = a.composition || '-';
-    document.getElementById('modal-technical').textContent = a.technical || '-';
-    document.getElementById('modal-mood').textContent = (a.mood || '') + (a.story ? ' ' + a.story : '');
-    document.getElementById('modal-use').textContent = a.best_use || '-';
+    document.getElementById('modal-score').textContent = a.score ? `${a.score}/10` : '';
+    document.getElementById('modal-subtitle').textContent = a.best_use ? `Best use: ${a.best_use}` : '';
+    document.getElementById('modal-summary').textContent = a.summary || (a.score ? '' : 'Not yet analyzed by Claude — click Analyze below.');
+    document.getElementById('modal-composition').textContent = a.composition || '—';
+    document.getElementById('modal-technical').textContent  = a.technical   || '—';
+    document.getElementById('modal-mood').textContent = [(a.mood || ''), (a.story || '')].filter(Boolean).join(' ');
+    document.getElementById('modal-use').textContent  = a.best_use || '—';
     document.getElementById('modal-fileinfo').textContent =
-        `${photo.filename}  •  ${photo.width}×${photo.height}  •  ${photo.megapixels}MP  •  ${photo.file_size_mb}MB`;
+        `${photo.filename}  ·  ${photo.width}×${photo.height}  ·  ${photo.megapixels}MP  ·  ${photo.file_size_mb}MB`;
+
+    // Reset cost display
+    document.getElementById('modal-cost').style.display = 'none';
 
     // Score reasoning
     const reasoningSection = document.getElementById('modal-reasoning-section');
     if (r.strengths || r.weaknesses) {
-        document.getElementById('modal-strengths').textContent = r.strengths || '-';
-        document.getElementById('modal-weaknesses').textContent = r.weaknesses || '-';
+        document.getElementById('modal-strengths').textContent  = r.strengths  || '—';
+        document.getElementById('modal-weaknesses').textContent = r.weaknesses || '—';
         reasoningSection.style.display = '';
     } else {
         reasoningSection.style.display = 'none';
     }
 
-    // Eyes / expression check
+    // Eyes / expression
     const eyesSection = document.getElementById('modal-eyes-section');
-    const eyesText = [a.eyes_check, a.expression_notes].filter(Boolean).join(' — ');
-    if (eyesText && eyesText !== 'N/A' && eyesText !== 'No people') {
+    const eyesText = [a.eyes_check, a.expression_notes].filter(t => t && t !== 'N/A' && t !== 'No people').join(' — ');
+    if (eyesText) {
         document.getElementById('modal-eyes').textContent = eyesText;
         eyesSection.style.display = '';
     } else {
@@ -260,70 +1415,1377 @@ function openSingle(photoId) {
     const tips = a.editing_tips || [];
     if (tips.length) {
         document.getElementById('modal-tips').innerHTML = tips.map(t =>
-            `<div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:7px;padding:8px 12px;font-size:13px;line-height:1.5">💡 ${t}</div>`
+            `<div class="tip-item"><span class="tip-icon">✦</span><span>${escHtml(t)}</span></div>`
         ).join('');
         tipsSection.style.display = '';
     } else {
         tipsSection.style.display = 'none';
     }
 
-    const actions = document.getElementById('modal-actions');
-    if (photo.approved === true) {
-        actions.innerHTML = `
-            <button class="btn-undo"   onclick="doAction(${photoId},'reset')">Undo</button>
-            <button class="btn-reject" onclick="doAction(${photoId},'reject')">Remove</button>`;
-    } else if (photo.approved === false) {
-        actions.innerHTML = `
-            <button class="btn-approve" onclick="doAction(${photoId},'approve')">Add to Website</button>
-            <button class="btn-undo"    onclick="doAction(${photoId},'reset')">Undo</button>`;
+    // Compare strip — show if this photo belongs to a group
+    const group = groupsByPhotoId[photo.id];
+    const compareStrip = document.getElementById('compare-strip');
+    if (group) {
+        document.getElementById('compare-strip-label').textContent =
+            `${group.photo_ids.length} similar shots in this group`;
+        document.getElementById('compare-strip-btn').onclick =
+            () => window.location.href = `/compare/${group.id}`;
+        compareStrip.style.display = 'flex';
     } else {
-        actions.innerHTML = `
-            <button class="btn-approve" onclick="doAction(${photoId},'approve')">Add to Website</button>
-            <button class="btn-reject"  onclick="doAction(${photoId},'reject')">Skip This Photo</button>`;
+        compareStrip.style.display = 'none';
     }
 
-    document.getElementById('modal').classList.add('active');
-    document.body.style.overflow = 'hidden';
+    // Actions
+    renderModalActions(photo);
 }
 
+function renderModalActions(photo) {
+    const a = photo.claude_analysis || {};
+    const isAnalyzed = !!(a.score);
+    const analyzeBtn = isAnalyzed ? '' :
+        `<button class="btn-analyze" onclick="analyzeOne(${photo.id})" id="analyze-btn-${photo.id}">✦ Analyze with Claude</button>`;
+
+    const kbd = `<span style="font-size:10px;opacity:0.5;font-weight:400;margin-left:6px;font-family:monospace">`;
+    const actions = document.getElementById('modal-actions');
+    if (photo.approved === true) {
+        actions.innerHTML = `${analyzeBtn}
+            <button class="btn btn-undo" onclick="doAction(${photo.id},'reset')">↩ Undo ${kbd}U</span></button>
+            <button class="btn btn-danger" onclick="doAction(${photo.id},'reject')">👎 Skip ${kbd}S</span></button>`;
+    } else if (photo.approved === false) {
+        actions.innerHTML = `${analyzeBtn}
+            <button class="btn btn-approve" onclick="doAction(${photo.id},'approve')">👍 Keep ${kbd}A</span></button>
+            <button class="btn btn-undo" onclick="doAction(${photo.id},'reset')">↩ Undo ${kbd}U</span></button>`;
+    } else {
+        actions.innerHTML = `${analyzeBtn}
+            <button class="btn btn-approve" onclick="doAction(${photo.id},'approve')">👍 Keep ${kbd}A</span></button>
+            <button class="btn btn-reject" onclick="doAction(${photo.id},'reject')">👎 Skip ${kbd}S</span></button>`;
+    }
+}
+
+// ── Modal navigation ────────────────────────────────────────────────────────
+function navPhoto(dir) {
+    if (!currentListIds.length) return;
+    const idx = currentListIds.indexOf(currentPhotoId);
+    if (idx === -1) return;
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= currentListIds.length) return;
+    const newId = currentListIds[newIdx];
+    const photo = allPhotos.find(p => p.id === newId);
+    if (!photo) return;
+    currentPhotoId = newId;
+    populateModal(photo);
+    updateNavButtons();
+    // Keep grid page in sync so closing the modal returns to the right page
+    const photoPage = Math.floor(newIdx / PAGE_SIZE) + 1;
+    if (photoPage !== currentPage) {
+        currentPage = photoPage;
+        renderGrid();
+    }
+}
+
+function updateNavButtons() {
+    const idx = currentListIds.indexOf(currentPhotoId);
+    const prevBtn = document.getElementById('nav-prev');
+    const nextBtn = document.getElementById('nav-next');
+    if (!prevBtn || !nextBtn) return;
+    prevBtn.disabled = idx <= 0;
+    nextBtn.disabled = idx >= currentListIds.length - 1;
+}
+
+// ── Actions ─────────────────────────────────────────────────────────────────
 async function doAction(id, action) {
     await fetch(`/api/photos/${id}/${action}`, { method: 'POST' });
+    // Update local state
+    const photo = allPhotos.find(p => p.id === id);
+    if (photo) { lastAction = { id, prev: photo.approved }; photo.approved = action === 'approve' ? true : action === 'reject' ? false : null; }
     closeModal();
-    showToast(action === 'approve' ? 'Added to website!' : 'Done', action === 'approve' ? 'success' : '');
+    showToast(action === 'approve' ? 'Added to website!' : action === 'reset' ? 'Reset' : 'Skipped',
+              action === 'approve' ? 'success' : '');
+    // Refresh stats
+    fetch('/api/stats').then(r=>r.json()).then(s=>{
+        document.getElementById('stat-approved').textContent = s.approved;
+        document.getElementById('stat-rejected').textContent = s.rejected;
+        document.getElementById('stat-pending').textContent  = s.pending;
+    });
+    renderGrid();
 }
 
+// ── Search ─────────────────────────────────────────────────────────────────
+function onSearchInput(val) {
+    searchQuery = val.trim();
+    document.getElementById('search-clear').style.display = searchQuery ? 'block' : 'none';
+    currentPage = 1;
+    renderGrid();
+}
+function clearSearch() {
+    searchQuery = '';
+    document.getElementById('photo-search').value = '';
+    document.getElementById('search-clear').style.display = 'none';
+    currentPage = 1;
+    renderGrid();
+}
+
+// ── Delivery Goal ───────────────────────────────────────────────────────────
+let deliveryGoal = parseInt(localStorage.getItem('cullo_delivery_goal') || '0');
+
+function updateDeliveryLabel() {
+    const approved = parseInt(document.getElementById('stat-approved').textContent) || 0;
+    const stat = document.getElementById('delivery-goal-stat');
+    const btn  = document.getElementById('delivery-goal-btn');
+    if (!deliveryGoal) { stat.style.display = 'none'; btn.style.display = ''; return; }
+    btn.style.display = 'none';
+    stat.style.display = '';
+    const remaining = Math.max(0, deliveryGoal - approved);
+    const pct = Math.min(100, Math.round((approved / deliveryGoal) * 100));
+    const label = document.getElementById('delivery-label');
+    if (remaining === 0) {
+        label.innerHTML = `🎉 Goal reached! ${approved}/${deliveryGoal} approved`;
+        label.style.color = 'var(--green)';
+    } else {
+        label.innerHTML = `${approved}/${deliveryGoal} approved · <span style="color:var(--text-dim)">${remaining} to go</span>`;
+        label.style.color = 'var(--accent)';
+    }
+}
+
+function toggleDeliveryGoal() {
+    const inp = document.getElementById('delivery-goal-input');
+    const btn = document.getElementById('delivery-goal-btn');
+    inp.style.display = inp.style.display === 'none' ? 'flex' : 'none';
+    btn.style.display = inp.style.display === 'flex' ? 'none' : '';
+    if (inp.style.display === 'flex') document.getElementById('delivery-goal-num').focus();
+}
+function saveDeliveryGoal() {
+    const val = parseInt(document.getElementById('delivery-goal-num').value);
+    if (!val || val < 1) return;
+    deliveryGoal = val;
+    localStorage.setItem('cullo_delivery_goal', val);
+    document.getElementById('delivery-goal-input').style.display = 'none';
+    updateDeliveryLabel();
+}
+function clearDeliveryGoal() {
+    deliveryGoal = 0;
+    localStorage.removeItem('cullo_delivery_goal');
+    document.getElementById('delivery-goal-input').style.display = 'none';
+    document.getElementById('delivery-goal-btn').style.display = '';
+    document.getElementById('delivery-goal-stat').style.display = 'none';
+}
+
+// ── Pick Best From Groups ────────────────────────────────────────────────────
+async function approveBestFromGroups(btn) {
+    if (!confirm('Pick Best will approve the top-scoring photo from each similar group and skip the rest. Continue?')) return;
+    btn.disabled = true;
+    const orig = btn.textContent;
+    btn.textContent = 'Picking…';
+    showToast('Picking the best photo from each group…', '');
+    try {
+        const res  = await fetch('/api/groups/approve-best', { method: 'POST' });
+        if (!res.ok) { showToast('Server error: ' + res.status, ''); return; }
+        const data = await res.json();
+        showToast(`Approved ${data.approved} best shots · Skipped ${data.skipped} others`, '');
+        const s = await fetch('/api/stats').then(r => r.json());
+        document.getElementById('stat-approved').textContent = s.approved;
+        document.getElementById('stat-rejected').textContent = s.rejected;
+        document.getElementById('stat-pending').textContent  = s.pending;
+        updateDeliveryLabel();
+        const fresh = await fetch('/api/photos').then(r => r.json());
+        allPhotos = fresh;
+        renderGrid();
+    } catch(e) {
+        showToast('Error: ' + e.message, '');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = orig;
+    }
+}
+
+// ── Auto-Reject Panel ────────────────────────────────────────────────────────
+async function showAutoRejectPanel() {
+    document.getElementById('autoreject-panel').style.display = 'flex';
+    await previewAutoReject();
+}
+function hideAutoRejectPanel() {
+    document.getElementById('autoreject-panel').style.display = 'none';
+}
+async function previewAutoReject() {
+    const threshold = document.getElementById('ar-thresh').value;
+    const prev = document.getElementById('ar-preview');
+    prev.textContent = 'Checking…';
+    const data = await fetch('/api/auto-reject', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ dry_run: true, threshold: parseFloat(threshold) }),
+    }).then(r => r.json());
+    if (data.count === 0) {
+        prev.innerHTML = '<span style="color:var(--green)">✓ No obvious failures found at this threshold.</span>';
+        document.getElementById('ar-apply-btn').disabled = true;
+    } else {
+        const samples = data.samples.slice(0, 5).join(', ');
+        prev.innerHTML = `<strong style="color:rgba(239,68,68,0.9)">${data.count} photos</strong> will be skipped.<br><span style="font-size:11px;color:var(--text-dim);font-family:monospace">${escHtml(samples)}${data.samples.length > 5 ? '…' : ''}</span>`;
+        document.getElementById('ar-apply-btn').disabled = false;
+    }
+}
+async function applyAutoReject() {
+    const threshold = document.getElementById('ar-thresh').value;
+    const btn = document.getElementById('ar-apply-btn');
+    btn.disabled = true; btn.textContent = 'Applying…';
+    const data = await fetch('/api/auto-reject', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ dry_run: false, threshold: parseFloat(threshold) }),
+    }).then(r => r.json());
+    hideAutoRejectPanel();
+    showToast(`Skipped ${data.rejected} low-quality photos`, '');
+    const s = await fetch('/api/stats').then(r => r.json());
+    document.getElementById('stat-approved').textContent = s.approved;
+    document.getElementById('stat-rejected').textContent = s.rejected;
+    document.getElementById('stat-pending').textContent  = s.pending;
+    updateDeliveryLabel();
+    const fresh = await fetch('/api/photos').then(r => r.json());
+    allPhotos = fresh;
+    renderGrid();
+    btn.disabled = false; btn.textContent = 'Skip These Photos';
+}
+
+// ── EXIF display in modal ────────────────────────────────────────────────────
+async function loadExif(photoId) {
+    const el = document.getElementById('modal-exif');
+    if (!el) return;
+    el.style.display = 'none';
+    el.innerHTML = '';
+    try {
+        const data = await fetch(`/api/photos/${photoId}/exif`).then(r => r.json());
+        const fields = [
+            data.shutter  && { icon: '⏱', label: 'Shutter', val: data.shutter },
+            data.aperture && { icon: '◎',  label: 'Aperture', val: data.aperture },
+            data.iso      && { icon: '◈',  label: 'ISO', val: data.iso },
+            data.focal    && { icon: '⌖',  label: 'Focal', val: data.focal },
+            data.camera   && { icon: '📷', label: 'Camera', val: data.camera },
+        ].filter(Boolean);
+        if (!fields.length) return;
+        el.innerHTML = fields.map(f =>
+            `<span style="display:flex;flex-direction:column;gap:1px;min-width:55px">
+                <span style="font-size:9px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-dim)">${f.label}</span>
+                <span style="font-size:13px;font-weight:600;color:var(--text)">${escHtml(String(f.val))}</span>
+            </span>`
+        ).join('');
+        el.style.display = 'flex';
+    } catch(e) { /* silently skip if no EXIF */ }
+}
+
+// ── Regroup Panel ───────────────────────────────────────────────────────────
+function showRegroupPanel() {
+    document.getElementById('regroup-panel').style.display = 'flex';
+}
+function hideRegroupPanel() {
+    document.getElementById('regroup-panel').style.display = 'none';
+}
+async function runRegroup() {
+    const threshold = parseInt(document.getElementById('thresh-slider').value);
+    const btn  = document.getElementById('regroup-run-btn');
+    const prog = document.getElementById('regroup-progress');
+    const bar  = document.getElementById('regroup-bar');
+    const msg  = document.getElementById('regroup-msg');
+    btn.disabled = true;
+    btn.textContent = 'Running…';
+    prog.style.display = 'block';
+    setRegroupProgress(0, 'Starting…');
+
+    try {
+        const res = await fetch('/api/regroup', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ threshold }),
+        });
+
+        const reader = res.body.getReader();
+        const dec = new TextDecoder();
+        let buf = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buf += dec.decode(value, { stream: true });
+            const lines = buf.split('\n');
+            buf = lines.pop(); // keep incomplete last line
+            for (const line of lines) {
+                const t = line.trim();
+                if (!t) continue;
+                if (t.startsWith('PROGRESS:')) {
+                    const parts = t.split(':');
+                    const pct   = parseInt(parts[1]) || 0;
+                    const label = parts.slice(2).join(':');
+                    setRegroupProgress(pct, label);
+                } else if (t.startsWith('{')) {
+                    try {
+                        const data = JSON.parse(t);
+                        if (data.status === 'ok') {
+                            setRegroupProgress(100, 'Complete!');
+                            showToast('Grouping complete! Reloading…', 'success');
+                            setTimeout(() => window.location.reload(), 1000);
+                        } else {
+                            showToast('Regroup failed: ' + (data.message || 'unknown error'), 'error');
+                            btn.disabled = false; btn.textContent = 'Re-run Grouping';
+                            prog.style.display = 'none';
+                        }
+                    } catch(_) {}
+                }
+            }
+        }
+    } catch(e) {
+        showToast('Error: ' + e.message, 'error');
+        btn.disabled = false; btn.textContent = 'Re-run Grouping';
+        prog.style.display = 'none';
+    }
+}
+
+function setRegroupProgress(pct, label) {
+    document.getElementById('regroup-bar').style.width = pct + '%';
+    document.getElementById('regroup-msg').textContent = label;
+}
+
+async function undoLastAction() {
+    if (!lastAction) { showToast('Nothing to undo', ''); return; }
+    const { id, prev } = lastAction;
+    const apiAction = prev === true ? 'approve' : prev === false ? 'reject' : 'reset';
+    await fetch(`/api/photos/${id}/${apiAction}`, { method: 'POST' });
+    const photo = allPhotos.find(p => p.id === id);
+    if (photo) photo.approved = prev;
+    lastAction = null;
+    renderGrid();
+    showToast('Undone', '');
+    fetch('/api/stats').then(r=>r.json()).then(s=>{
+        document.getElementById('stat-approved').textContent = s.approved;
+        document.getElementById('stat-rejected').textContent = s.rejected;
+        document.getElementById('stat-pending').textContent  = s.pending;
+    });
+}
+
+async function undoSkip(id, event) {
+    event.stopPropagation();
+    await fetch(`/api/photos/${id}/reset`, { method: 'POST' });
+    const photo = allPhotos.find(p => p.id === id);
+    if (photo) photo.approved = null;
+    renderGrid();
+    showToast('Restored to pending', '');
+    fetch('/api/stats').then(r=>r.json()).then(s=>{
+        document.getElementById('stat-approved').textContent = s.approved;
+        document.getElementById('stat-rejected').textContent = s.rejected;
+        document.getElementById('stat-pending').textContent  = s.pending;
+    });
+}
+
+async function undoApprove(id, event) {
+    event.stopPropagation();
+    await fetch(`/api/photos/${id}/reset`, { method: 'POST' });
+    const photo = allPhotos.find(p => p.id === id);
+    if (photo) photo.approved = null;
+    renderGrid();
+    showToast('Removed from approved', '');
+    fetch('/api/stats').then(r=>r.json()).then(s=>{
+        document.getElementById('stat-approved').textContent = s.approved;
+        document.getElementById('stat-rejected').textContent = s.rejected;
+        document.getElementById('stat-pending').textContent  = s.pending;
+    });
+}
+
+async function analyzeOne(photoId) {
+    const btn = document.getElementById(`analyze-btn-${photoId}`);
+    if (btn) { btn.disabled = true; btn.textContent = '✦ Analyzing…'; }
+    showToast('Sending to Claude… this takes a few seconds', '');
+
+    try {
+        const res  = await fetch(`/api/photos/${photoId}/analyze`, { method: 'POST' });
+        const data = await res.json();
+        if (data.error) {
+            showToast('Analysis failed: ' + data.error, 'error');
+            if (btn) { btn.disabled = false; btn.textContent = '✦ Analyze with Claude'; }
+            return;
+        }
+
+        // Update local photo object
+        const photo = allPhotos.find(p => p.id === photoId);
+        if (photo) photo.claude_analysis = data.analysis;
+
+        // Show cost
+        if (data.actual_cost !== undefined) {
+            const costEl = document.getElementById('modal-cost');
+            document.getElementById('cost-tokens').textContent =
+                `${data.input_tokens.toLocaleString()} in + ${data.output_tokens.toLocaleString()} out tokens`;
+            document.getElementById('cost-amount').textContent = `$${data.actual_cost.toFixed(6)}`;
+            costEl.style.display = 'flex';
+            sessionCost += data.actual_cost;
+            updateSessionCost();
+        }
+
+        showToast('Analysis complete!', 'success');
+        // Refresh and reopen
+        await init();
+        openPhoto(photoId);
+    } catch(e) {
+        showToast('Analysis failed — check terminal.', 'error');
+        if (btn) { btn.disabled = false; btn.textContent = '✦ Analyze with Claude'; }
+    }
+}
+
+function updateSessionCost() {
+    const el = document.getElementById('session-cost');
+    el.style.display = '';
+    document.getElementById('session-cost-val').textContent = `$${sessionCost.toFixed(6)}`;
+    // Refresh the persistent usage pill
+    loadUsagePill();
+}
+
+async function loadUsagePill() {
+    try {
+        const d = await fetch('/api/usage').then(r => r.json());
+        const pill = document.getElementById('usage-pill');
+        const total = d.total_cost || 0;
+        document.getElementById('usage-total').textContent = `$${total.toFixed(2)}`;
+        if (d.budget > 0) {
+            document.getElementById('usage-budget').textContent = `$${d.budget.toFixed(2)}`;
+            document.getElementById('usage-budget-part').style.display = '';
+            const pct = Math.min(100, (total / d.budget) * 100);
+            const col = pct > 80 ? 'rgba(239,68,68,0.9)' : pct > 60 ? 'rgba(255,180,60,0.9)' : 'var(--accent)';
+            document.getElementById('usage-total').style.color = col;
+        } else {
+            document.getElementById('usage-budget-part').style.display = 'none';
+        }
+        pill.style.display = total > 0 ? '' : 'none';
+    } catch(e) { /* non-critical */ }
+}
+
+async function confirmResetAll() {
+    const n = allPhotos.filter(p => p.approved !== null).length;
+    if (!confirm(`Reset all decisions? This will move all ${n} approved/skipped photos back to pending. This cannot be undone.`)) return;
+    const res = await fetch('/api/photos/reset-all', { method: 'POST' });
+    const data = await res.json();
+    allPhotos.forEach(p => { p.approved = null; });
+    renderGrid();
+    showToast(`Reset ${data.reset} photos to pending`, '');
+    const s = await fetch('/api/stats').then(r => r.json());
+    document.getElementById('stat-approved').textContent = s.approved;
+    document.getElementById('stat-rejected').textContent = s.rejected;
+    document.getElementById('stat-pending').textContent  = s.pending;
+}
+
+async function confirmResetUsage() {
+    if (!confirm('Reset the total usage counter to $0.00?')) return;
+    // Write zero to the usage file via a quick fetch
+    await fetch('/api/usage/reset', { method: 'POST' });
+    loadUsagePill();
+}
+
+// ── Modal helpers ────────────────────────────────────────────────────────────
 function closeModal() {
     document.getElementById('modal').classList.remove('active');
     document.body.style.overflow = '';
-    loadGroups();
 }
 
 function closeModalOutside(e) {
     if (e.target === document.getElementById('modal')) closeModal();
 }
 
-document.addEventListener('keydown', e => {
-    if (!document.getElementById('modal').classList.contains('active')) return;
-    if (e.key === 'Escape')             closeModal();
-    if (e.key === 'a' || e.key === 'A') { e.preventDefault(); doAction(currentPhotoId, 'approve'); }
-    if (e.key === 's' || e.key === 'S') { e.preventDefault(); doAction(currentPhotoId, 'reject'); }
-});
-
-async function buildWebsite() {
-    showToast('Building your website...', '');
-    const res = await fetch('/api/build', { method: 'POST' });
-    const r = await res.json();
-    showToast(r.status === 'success' ? 'Website built! Check docs/ folder.' : 'Build error — check terminal.', r.status === 'success' ? 'success' : 'error');
+// ── Export helpers ───────────────────────────────────────────────────────────
+async function exportClientProof() {
+    showToast('Building client proof — embedding photos… (~30 seconds)', '');
+    const res = await fetch('/api/export_client_proof', { method: 'POST' });
+    const r   = await res.json();
+    showToast(r.status === 'success'
+        ? `Client proof ready! exports/client_proof.html (${r.size_mb} MB)`
+        : r.message || 'Export failed — check terminal.', r.status === 'success' ? 'success' : 'error');
 }
 
+async function exportRaws() {
+    showToast('Finding your RAW files…', '');
+    const res = await fetch('/api/export_raws', { method: 'POST' });
+    const r   = await res.json();
+    if (r.status === 'success') {
+        let msg = `Copied ${r.copied} RAW file${r.copied!==1?'s':''} to exports/ready_to_edit/`;
+        if (r.missing.length) msg += ` (${r.missing.length} had no RAW)`;
+        showToast(msg, 'success');
+    } else {
+        showToast(r.message || 'Export failed — check terminal.', 'error');
+    }
+}
+
+async function buildWebsite() {
+    showToast('Building your website…', '');
+    const res = await fetch('/api/build', { method: 'POST' });
+    const r   = await res.json();
+    showToast(r.status === 'success' ? 'Website built! Check docs/ folder.' : 'Build error — check terminal.',
+              r.status === 'success' ? 'success' : 'error');
+}
+
+// ── Import Client Picks ──────────────────────────────────────────────────────
+function openImportPicks() {
+    document.getElementById('import-picks-modal').classList.add('active');
+    document.getElementById('picks-textarea').value = '';
+    setTimeout(() => document.getElementById('picks-textarea').focus(), 50);
+}
+function closeImportPicks() {
+    document.getElementById('import-picks-modal').classList.remove('active');
+}
+async function submitClientPicks() {
+    const text = document.getElementById('picks-textarea').value.trim();
+    if (!text) return;
+    const res = await fetch('/api/import_client_picks', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({text}),
+    });
+    const r = await res.json();
+    if (r.status === 'success') {
+        closeImportPicks();
+        showToast(`Imported ${r.matched} client picks`, 'success');
+        await init();
+    } else {
+        showToast(r.message || 'Could not parse picks — paste the full email.', 'error');
+    }
+}
+
+// ── Toast ────────────────────────────────────────────────────────────────────
 function showToast(msg, type) {
     const t = document.getElementById('toast');
     t.textContent = msg;
-    t.className = `toast show ${type}`;
-    setTimeout(() => t.classList.remove('show'), 3000);
+    t.className = `toast show ${type || ''}`;
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove('show'), 4200);
 }
 
-loadGroups();
+// ── Tip strip + shortcuts ─────────────────────────────────────────────────────
+function initTipStrip() {
+    if (!localStorage.getItem('cullo_tip_dismissed')) {
+        document.getElementById('tip-strip').style.display = 'flex';
+    }
+}
+function dismissTip() {
+    localStorage.setItem('cullo_tip_dismissed', '1');
+    document.getElementById('tip-strip').style.display = 'none';
+}
+function showShortcuts() {
+    const el = document.getElementById('shortcuts-overlay');
+    el.style.display = 'flex';
+}
+function hideShortcuts() {
+    document.getElementById('shortcuts-overlay').style.display = 'none';
+}
+
+// Compare Mode toggle — makes all checkboxes fully visible
+let compareModeOn = false;
+function toggleCompareMode(btn) {
+    compareModeOn = !compareModeOn;
+    document.body.classList.toggle('selecting', compareModeOn || selectedIds.size > 0);
+    if (compareModeOn) {
+        btn.classList.remove('accent'); btn.classList.add('primary');
+        btn.textContent = '☑ Compare Mode On';
+        showToast('Compare Mode: click any photo to select it', '');
+    } else {
+        btn.classList.remove('primary'); btn.classList.add('accent');
+        btn.textContent = 'Select to Compare';
+        if (!selectedIds.size) document.body.classList.remove('selecting');
+    }
+}
+
+function selectAllVisible() {
+    // Get photo IDs currently rendered on this page
+    const visibleIds = currentListIds.slice(
+        (currentPage - 1) * PAGE_SIZE,
+        currentPage * PAGE_SIZE
+    );
+    const btn = document.getElementById('btn-select-all');
+    const allSelected = visibleIds.length > 0 && visibleIds.every(id => selectedIds.has(id));
+
+    if (allSelected) {
+        visibleIds.forEach(id => selectedIds.delete(id));
+        btn.textContent = 'Select All';
+        btn.classList.remove('primary'); btn.classList.add('accent');
+        if (!selectedIds.size) document.body.classList.remove('selecting');
+    } else {
+        visibleIds.forEach(id => selectedIds.add(id));
+        btn.textContent = 'Deselect All';
+        btn.classList.remove('accent'); btn.classList.add('primary');
+        document.body.classList.add('selecting');
+    }
+    renderGrid();
+    updateSelectionBar();
+}
+
+// ── Multi-Select ─────────────────────────────────────────────────────────────
+function toggleSelect(id, event) {
+    event.stopPropagation();
+    if (selectedIds.has(id)) {
+        selectedIds.delete(id);
+    } else {
+        selectedIds.add(id);
+    }
+    // Toggle body class so all checkboxes stay visible while selecting
+    document.body.classList.toggle('selecting', selectedIds.size > 0);
+    // Update just this card
+    const card = event.currentTarget.closest('.photo-card');
+    if (card) {
+        card.classList.toggle('selected', selectedIds.has(id));
+        event.currentTarget.textContent = selectedIds.has(id) ? '✓' : '';
+    }
+    updateSelectionBar();
+}
+
+function clearSelection() {
+    selectedIds.clear();
+    document.body.classList.remove('selecting');
+    const btn = document.getElementById('btn-select-all');
+    if (btn) { btn.textContent = 'Select All'; }
+    renderGrid();
+    updateSelectionBar();
+}
+
+function updateSelectionBar() {
+    const bar = document.getElementById('select-bar');
+    const n = selectedIds.size;
+    if (n < 2) { bar.classList.remove('visible'); return; }
+    bar.classList.add('visible');
+    document.getElementById('sel-count').textContent = n;
+
+    // Build description of what's selected
+    const selected = [...selectedIds].map(id => allPhotos.find(p => p.id === id)).filter(Boolean);
+    const nApproved = selected.filter(p => p.approved === true).length;
+    const nSkipped  = selected.filter(p => p.approved === false).length;
+    const nPending  = selected.filter(p => p.approved == null).length;
+    const parts = [];
+    if (nApproved) parts.push(`${nApproved} approved`);
+    if (nPending)  parts.push(`${nPending} pending`);
+    if (nSkipped)  parts.push(`${nSkipped} skipped`);
+    document.getElementById('sel-desc').textContent = parts.join(' · ') || 'selected';
+
+    // Show Unskip only when at least one skipped photo is selected
+    document.getElementById('sel-unskip-btn').style.display = nSkipped > 0 ? '' : 'none';
+
+    // Show "Analyze & Compare" only if any selected photo lacks analysis
+    const hasUnanalyzed = selected.some(p => !p.claude_analysis);
+    document.getElementById('sel-analyze-btn').style.display = hasUnanalyzed ? '' : 'none';
+}
+
+function compareSelected() {
+    if (selectedIds.size < 2) return;
+    const ids = [...selectedIds].join(',');
+    window.location.href = `/compare-selected?ids=${ids}`;
+}
+
+async function approveAllSelected() {
+    const ids = [...selectedIds];
+    for (const id of ids) {
+        await fetch(`/api/photos/${id}/approve`, { method: 'POST' });
+        const p = allPhotos.find(p => p.id === id);
+        if (p) p.approved = true;
+    }
+    clearSelection();
+    renderGrid();
+    showToast(`Approved ${ids.length} photos`, 'success');
+    fetch('/api/stats').then(r=>r.json()).then(s=>{
+        document.getElementById('stat-approved').textContent = s.approved;
+        document.getElementById('stat-rejected').textContent = s.rejected;
+        document.getElementById('stat-pending').textContent  = s.pending;
+    });
+}
+
+async function skipAllSelected() {
+    const ids = [...selectedIds];
+    for (const id of ids) {
+        await fetch(`/api/photos/${id}/reject`, { method: 'POST' });
+        const p = allPhotos.find(p => p.id === id);
+        if (p) p.approved = false;
+    }
+    clearSelection();
+    renderGrid();
+    showToast(`Skipped ${ids.length} photos`, '');
+    fetch('/api/stats').then(r=>r.json()).then(s=>{
+        document.getElementById('stat-approved').textContent = s.approved;
+        document.getElementById('stat-rejected').textContent = s.rejected;
+        document.getElementById('stat-pending').textContent  = s.pending;
+    });
+}
+
+async function unskipAllSelected() {
+    const ids = [...selectedIds].filter(id => {
+        const p = allPhotos.find(p => p.id === id);
+        return p && p.approved === false;
+    });
+    for (const id of ids) {
+        await fetch(`/api/photos/${id}/reset`, { method: 'POST' });
+        const p = allPhotos.find(p => p.id === id);
+        if (p) p.approved = null;
+    }
+    clearSelection();
+    renderGrid();
+    showToast(`Restored ${ids.length} photos to pending`, '');
+    fetch('/api/stats').then(r=>r.json()).then(s=>{
+        document.getElementById('stat-approved').textContent = s.approved;
+        document.getElementById('stat-rejected').textContent = s.rejected;
+        document.getElementById('stat-pending').textContent  = s.pending;
+    });
+}
+
+async function groupSelected() {
+    if (selectedIds.size < 2) { showToast('Select at least 2 photos to group', ''); return; }
+    const ids = [...selectedIds];
+    // Generate a theme from the photos' analysis
+    const names = ids.map(id => {
+        const p = allPhotos.find(p => p.id === id);
+        return p?.claude_analysis?.title || p?.filename || '';
+    }).filter(Boolean).slice(0, 2).join(' / ');
+    const theme = names || 'Custom Group';
+    const res = await fetch('/api/groups/create', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ photo_ids: ids, theme }),
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        showToast(err.error || `Server error ${res.status}`, '');
+        return;
+    }
+    const data = await res.json();
+    if (data.status === 'ok') {
+        showToast(`Group created! Opening groups page…`, '');
+        clearSelection();
+        setTimeout(() => { window.location.href = '/compare'; }, 800);
+    } else {
+        showToast(data.error || 'Failed to create group', '');
+    }
+}
+
+async function analyzeAndCompareSelected() {
+    const unanalyzed = [...selectedIds].filter(id => {
+        const p = allPhotos.find(p => p.id === id);
+        return p && !p.claude_analysis;
+    });
+    if (unanalyzed.length) {
+        showToast(`Analyzing ${unanalyzed.length} photo${unanalyzed.length > 1 ? 's' : ''}…`, '');
+        for (const id of unanalyzed) {
+            await fetch(`/api/photos/${id}/analyze`, { method: 'POST' });
+        }
+        await init(); // reload catalog
+    }
+    compareSelected();
+}
+
+// ── Quick Cull Mode ─────────────────────────────────────────────────────────────
+let cullMode    = false;
+let cullList    = [];   // photo ids in review order
+let cullIdx     = 0;
+let cullKept    = 0;
+let cullSkipped = 0;
+
+function enterQuickCull() {
+    // Build list: all photos that have Claude analysis, in score order
+    // If current filter is 'pending', use only pending; otherwise all analyzed
+    let list;
+    if (currentFilter === 'pending') {
+        list = allPhotos.filter(p => p.claude_analysis && p.approved == null);
+    } else if (currentFilter === 'approved') {
+        list = allPhotos.filter(p => p.approved === true);
+    } else if (currentFilter === 'rejected') {
+        list = allPhotos.filter(p => p.approved === false);
+    } else {
+        // Default: all analyzed (pending first, then approved, then skipped)
+        const pending  = allPhotos.filter(p => p.claude_analysis && p.approved == null);
+        const approved = allPhotos.filter(p => p.approved === true);
+        const rejected = allPhotos.filter(p => p.approved === false);
+        list = [...pending, ...approved, ...rejected];
+    }
+    if (!list.length) { showToast('No photos to review. Run Claude analysis first.', ''); return; }
+
+    cullList    = list.map(p => p.id);
+    cullIdx     = 0;
+    cullKept    = 0;
+    cullSkipped = 0;
+    cullMode    = true;
+    document.getElementById('cull-total').textContent = cullList.length;
+    document.getElementById('cull-overlay').classList.add('active');
+    document.body.style.overflow = 'hidden';
+    cullLoad();
+}
+
+function exitQuickCull() {
+    cullMode = false;
+    document.getElementById('cull-overlay').classList.remove('active');
+    document.body.style.overflow = '';
+    renderGrid();
+    if (cullKept + cullSkipped > 0) {
+        showToast(`Quick Cull done — ${cullKept} kept, ${cullSkipped} skipped`, 'success');
+    }
+}
+
+function cullLoad() {
+    if (cullIdx < 0) cullIdx = 0;
+    if (cullIdx >= cullList.length) { exitQuickCull(); return; }
+
+    const photo = allPhotos.find(p => p.id === cullList[cullIdx]);
+    if (!photo) { cullIdx++; cullLoad(); return; }
+
+    const a = photo.claude_analysis || {};
+    document.getElementById('cull-img').src  = `/photo/${photo.id}`;
+    document.getElementById('cull-score').textContent = a.score ? `${a.score}/10` : '';
+    document.getElementById('cull-name').textContent  = a.title || photo.filename;
+    document.getElementById('cull-cur').textContent   = cullIdx + 1;
+
+    const statusEl = document.getElementById('cull-status');
+    if (photo.approved === true) {
+        statusEl.textContent  = 'Approved';
+        statusEl.className    = 'cull-status approved';
+    } else if (photo.approved === false) {
+        statusEl.textContent  = 'Skipped';
+        statusEl.className    = 'cull-status rejected';
+    } else {
+        statusEl.textContent  = 'Pending';
+        statusEl.className    = 'cull-status pending';
+    }
+    document.getElementById('cull-kept').textContent    = `${cullKept} kept`;
+    document.getElementById('cull-skipped').textContent = `${cullSkipped} skipped`;
+}
+
+async function cullAction(action) {
+    const id = cullList[cullIdx];
+    const photo = allPhotos.find(p => p.id === id);
+    if (!photo) return;
+
+    if (action === 'approve') {
+        await fetch(`/api/photos/${id}/approve`, { method: 'POST' });
+        photo.approved = true;
+        cullKept++;
+        cullFlash('green');
+    } else if (action === 'reject') {
+        await fetch(`/api/photos/${id}/reject`, { method: 'POST' });
+        photo.approved = false;
+        cullSkipped++;
+        cullFlash('red');
+    }
+
+    // Update stats quietly
+    fetch('/api/stats').then(r=>r.json()).then(s=>{
+        document.getElementById('stat-approved').textContent = s.approved;
+        document.getElementById('stat-rejected').textContent = s.rejected;
+        document.getElementById('stat-pending').textContent  = s.pending;
+    });
+
+    cullIdx++;
+    setTimeout(cullLoad, 80);
+}
+
+function cullFlash(color) {
+    const flashEl = document.getElementById(`cull-flash-${color}`);
+    const labelEl = document.getElementById(`cull-label-${color === 'green' ? 'keep' : 'skip'}`);
+    // Reset then trigger
+    flashEl.classList.remove('show');
+    labelEl.classList.remove('show');
+    void flashEl.offsetWidth; // reflow
+    flashEl.classList.add('show');
+    labelEl.classList.add('show');
+    setTimeout(() => { flashEl.classList.remove('show'); labelEl.classList.remove('show'); }, 350);
+}
+
+// ── Keyboard shortcuts ───────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+    // Never fire shortcuts when typing in an input/textarea
+    const tag = document.activeElement?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable) return;
+
+    // Quick Cull mode takes priority
+    if (cullMode) {
+        if (e.key === 'Escape')     { e.preventDefault(); exitQuickCull(); }
+        if (e.key === 'ArrowUp')    { e.preventDefault(); cullAction('approve'); }
+        if (e.key === 'ArrowDown')  { e.preventDefault(); cullAction('reject'); }
+        if (e.key === 'ArrowLeft')  { e.preventDefault(); if (cullIdx > 0) { cullIdx--; cullLoad(); } }
+        if (e.key === 'ArrowRight') { e.preventDefault(); cullIdx++; cullLoad(); }
+        return;
+    }
+    // Fullscreen zoom takes second priority
+    const fsOpen = document.getElementById('fullscreen-zoom').classList.contains('active');
+    if (fsOpen) {
+        e.preventDefault();
+        if (e.key === 'Escape')     closeFullscreen();
+        if (e.key === 'ArrowLeft')  fzNav(-1);
+        if (e.key === 'ArrowRight') fzNav(1);
+        if (e.key === 'ArrowUp')    fzAction('approve');
+        if (e.key === 'ArrowDown')  fzAction('reject');
+        return;
+    }
+
+    // Group overlay escape
+    if (e.key === 'Escape' && document.getElementById('group-overlay').classList.contains('active')) {
+        closeGroupOverlay(); return;
+    }
+    // Global shortcuts (always active)
+    if ((e.key === 'u' || e.key === 'U') && !e.ctrlKey && !e.metaKey) { e.preventDefault(); undoLastAction(); return; }
+    if ((e.key === 'a' || e.key === 'A') && !e.ctrlKey && !e.metaKey && !e.shiftKey) { e.preventDefault(); selectAllVisible(); return; }
+    if (e.key === '?') { e.preventDefault(); showShortcuts(); return; }
+    if (e.key === 'Escape' && document.getElementById('shortcuts-overlay').style.display !== 'none') {
+        hideShortcuts(); return;
+    }
+
+    const modalOpen = document.getElementById('modal').classList.contains('active');
+    if (!modalOpen) return;
+    if (e.key === 'Escape')                  { e.preventDefault(); closeModal(); }
+    if (e.key === 'ArrowLeft')               { e.preventDefault(); navPhoto(-1); }
+    if (e.key === 'ArrowRight')              { e.preventDefault(); navPhoto(1); }
+    if ((e.key === 'a' || e.key === 'A') && currentPhotoId) { e.preventDefault(); doAction(currentPhotoId, 'approve'); }
+    if ((e.key === 's' || e.key === 'S') && currentPhotoId) { e.preventDefault(); doAction(currentPhotoId, 'reject'); }
+});
+
+// ── Utils ────────────────────────────────────────────────────────────────────
+function escHtml(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Card Flip ─────────────────────────────────────────────────────────────────
+function flipCard(id, event) {
+    event.stopPropagation();
+    const inner = document.getElementById(`imgflip-${id}`);
+    if (inner) inner.classList.add('flipped');
+}
+function unflipCard(id, event) {
+    event.stopPropagation();
+    const inner = document.getElementById(`imgflip-${id}`);
+    if (inner) inner.classList.remove('flipped');
+}
+async function analyzeFromCard(id, event) {
+    event.stopPropagation();
+    const btn = event.currentTarget;
+    btn.disabled = true; btn.textContent = '✦ Analyzing…';
+    showToast('Sending to Claude…', '');
+    try {
+        const res  = await fetch(`/api/photos/${id}/analyze`, { method: 'POST' });
+        const data = await res.json();
+        if (data.error) {
+            showToast('Analysis failed: ' + data.error, 'error');
+            btn.disabled = false; btn.textContent = '✦ Analyze with Claude';
+            return;
+        }
+        const photo = allPhotos.find(p => p.id === id);
+        if (photo) photo.claude_analysis = data.analysis;
+        sessionCost += data.actual_cost || 0;
+        updateSessionCost();
+        showToast('Analysis complete!', 'success');
+        renderGrid(); // re-render so flip back shows the new analysis
+    } catch(e) {
+        showToast('Analysis failed', 'error');
+        btn.disabled = false; btn.textContent = '✦ Analyze with Claude';
+    }
+}
+
+// ── Similar Shots Group Overlay ───────────────────────────────────────────────
+let _goGroupId = null;
+let _goPhotos  = [];
+
+function openGroupOverlay(groupId, event) {
+    if (event) event.stopPropagation();
+    const group = allGroups.find(g => g.id === groupId);
+    if (!group) return;
+
+    _goGroupId = groupId;
+    _goPhotos  = (group.photo_ids || []).map(id => allPhotos.find(p => p.id === id)).filter(Boolean);
+    // Default: all selected except already-skipped ones
+    goSelectedIds = new Set(_goPhotos.filter(p => p.approved !== false).map(p => p.id));
+
+    document.getElementById('go-title').textContent = group.theme || `${_goPhotos.length} Similar Shots`;
+    document.getElementById('go-count').textContent = `${_goPhotos.length} photos`;
+    _renderGoGrid();
+
+    document.getElementById('group-overlay').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function _renderGoGrid() {
+    document.getElementById('go-grid').innerHTML = _goPhotos.map(p => {
+        const a = p.claude_analysis || {};
+        const score = a.score;
+        const isSelected = goSelectedIds.has(p.id);
+        const isSkipped  = p.approved === false;
+        const cls = isSkipped ? 'go-skipped' : isSelected ? 'go-selected' : '';
+        return `
+            <div class="go-thumb ${cls}" id="go-thumb-${p.id}"
+                 onclick="toggleGoSelect(${p.id})" title="${escHtml(p.filename)}">
+                <img src="/thumb/${p.id}" alt="${escHtml(p.filename)}" loading="lazy">
+                <div class="go-check">${isSelected && !isSkipped ? '✓' : ''}</div>
+                <button class="go-skip-btn" onclick="skipInOverlay(${p.id}, event)" title="Skip this photo (marks as rejected)">✕</button>
+                <button class="go-remove-btn" onclick="removeFromGroup(${p.id}, '${_goGroupId}', event)" title="Remove from this group (keeps photo)">remove</button>
+                <div class="go-thumb-info">
+                    ${score ? `<span class="go-thumb-score">${score}/10</span>` : ''}
+                    <span class="go-thumb-name">${escHtml(p.filename)}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+    _updateGoFooter();
+}
+
+function toggleGoSelect(id) {
+    const p = _goPhotos.find(p => p.id === id);
+    if (!p || p.approved === false) return; // can't select skipped
+    if (goSelectedIds.has(id)) goSelectedIds.delete(id);
+    else goSelectedIds.add(id);
+    const el = document.getElementById(`go-thumb-${id}`);
+    if (el) {
+        el.className = `go-thumb ${goSelectedIds.has(id) ? 'go-selected' : ''}`;
+        el.querySelector('.go-check').textContent = goSelectedIds.has(id) ? '✓' : '';
+    }
+    _updateGoFooter();
+}
+
+async function skipInOverlay(id, event) {
+    event.stopPropagation();
+    await fetch(`/api/photos/${id}/reject`, { method: 'POST' });
+    const photo = allPhotos.find(p => p.id === id);
+    if (photo) { lastAction = { id, prev: photo.approved }; photo.approved = false; }
+    goSelectedIds.delete(id);
+    const el = document.getElementById(`go-thumb-${id}`);
+    if (el) { el.className = 'go-thumb go-skipped'; el.querySelector('.go-check').textContent = ''; }
+    _updateGoFooter();
+    // Refresh stats quietly
+    fetch('/api/stats').then(r=>r.json()).then(s=>{
+        document.getElementById('stat-rejected').textContent = s.rejected;
+        document.getElementById('stat-pending').textContent  = s.pending;
+    });
+}
+
+async function removeFromGroup(photoId, groupId, event) {
+    event.stopPropagation();
+    const res = await fetch(`/api/groups/${groupId}/remove/${photoId}`, { method: 'POST' });
+    const data = await res.json();
+    // Remove from overlay list
+    _goPhotos = _goPhotos.filter(p => p.id !== photoId);
+    goSelectedIds.delete(photoId);
+    const el = document.getElementById(`go-thumb-${photoId}`);
+    if (el) el.remove();
+    // Update groupsByPhotoId so the card in the grid becomes standalone
+    if (groupsByPhotoId[photoId]) {
+        const g = groupsByPhotoId[photoId];
+        g.photo_ids = g.photo_ids.filter(id => id !== photoId);
+        delete groupsByPhotoId[photoId];
+    }
+    document.getElementById('go-count').textContent = `${_goPhotos.length} photos`;
+    if (_goPhotos.length < 2) { closeGroupOverlay(); renderGrid(); return; }
+    _updateGoFooter();
+    showToast('Removed from group — photo is now standalone', '');
+}
+
+function _updateGoFooter() {
+    const selCount = goSelectedIds.size;
+    const compareBtn = document.getElementById('go-compare-btn');
+    const cullBtn    = document.getElementById('go-cull-btn');
+    compareBtn.textContent = selCount > 0 ? `✦ Compare Selected (${selCount}) →` : '✦ Compare All →';
+    compareBtn.onclick = () => {
+        const ids = selCount > 0 ? [...goSelectedIds] : _goPhotos.map(p => p.id);
+        window.location.href = `/compare/${_goGroupId}?ids=${ids.join(',')}`;
+    };
+    cullBtn.onclick = () => {
+        closeGroupOverlay();
+        const ids = selCount > 0 ? [...goSelectedIds] : _goPhotos.map(p => p.id);
+        cullListCustom(ids);
+    };
+}
+
+function closeGroupOverlay() {
+    document.getElementById('group-overlay').classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+function openPhotoFromOverlay(id) {
+    closeGroupOverlay();
+    openPhoto(id);
+}
+
+function cullListCustom(ids) {
+    const list = ids.map(id => allPhotos.find(p => p.id === id)).filter(Boolean);
+    if (!list.length) { showToast('No analyzed photos in this group yet.', ''); return; }
+    cullList = list.map(p => p.id);
+    cullIdx = 0; cullKept = 0; cullSkipped = 0;
+    cullMode = true;
+    document.getElementById('cull-total').textContent = cullList.length;
+    document.getElementById('cull-overlay').classList.add('active');
+    document.body.style.overflow = 'hidden';
+    cullLoad();
+}
+
+// ── Chatbot ───────────────────────────────────────────────────────────────────
+let chatOpen = false;
+let chatHistory = [];
+let chatCostTotal = 0;
+
+function toggleChat() {
+    chatOpen = !chatOpen;
+    document.getElementById('chat-panel').classList.toggle('open', chatOpen);
+    document.getElementById('chat-fab').textContent = chatOpen ? '×' : '💬';
+    if (chatOpen && chatHistory.length === 0) {
+        const approved = allPhotos.filter(p => p.approved === true).length;
+        const pending  = allPhotos.filter(p => p.approved == null && p.claude_analysis).length;
+        addBotMsg(`Hi! I know your shoot — ${allPhotos.length} photos analyzed, ${approved} approved, ${pending} pending. Ask me anything or tell me what to do.`,
+            ['Show top 5 photos', 'How many approved?', 'Start Quick Cull', `Approve all ${pending} pending`]);
+    }
+}
+
+function addBotMsg(text, chips) {
+    const msgs = document.getElementById('chat-msgs');
+    const el = document.createElement('div');
+    el.className = 'chat-bubble bot';
+    el.textContent = text;
+    if (chips && chips.length) {
+        const row = document.createElement('div');
+        row.className = 'chat-chips';
+        chips.forEach(c => {
+            const btn = document.createElement('button');
+            btn.className = 'chat-chip'; btn.textContent = c;
+            btn.onclick = () => sendChat(c);
+            row.appendChild(btn);
+        });
+        el.appendChild(row);
+    }
+    msgs.appendChild(el);
+    msgs.scrollTop = msgs.scrollHeight;
+}
+function addUserMsg(text) {
+    const msgs = document.getElementById('chat-msgs');
+    const el = document.createElement('div');
+    el.className = 'chat-bubble user'; el.textContent = text;
+    msgs.appendChild(el); msgs.scrollTop = msgs.scrollHeight;
+}
+function addThinkingMsg() {
+    const msgs = document.getElementById('chat-msgs');
+    const el = document.createElement('div');
+    el.className = 'chat-bubble thinking'; el.id = 'chat-thinking'; el.textContent = 'Thinking…';
+    msgs.appendChild(el); msgs.scrollTop = msgs.scrollHeight;
+}
+function removeThinkingMsg() {
+    const el = document.getElementById('chat-thinking');
+    if (el) el.remove();
+}
+
+async function sendChat(text) {
+    text = (text || '').trim();
+    if (!text) return;
+
+    // Handle local commands that don't need to go to the API
+    if (text.toLowerCase() === 'clear visual search') {
+        document.getElementById('chat-input').value = '';
+        addUserMsg(text);
+        clearVisualSearch();
+        addBotMsg('Visual search cleared — showing normal view again.');
+        return;
+    }
+
+    document.getElementById('chat-input').value = '';
+    addUserMsg(text);
+    chatHistory.push({ role: 'user', content: text });
+    document.getElementById('chat-send').disabled = true;
+    addThinkingMsg();
+
+    try {
+        const res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                messages: chatHistory,
+                stats: {
+                    total: allPhotos.length,
+                    approved: allPhotos.filter(p => p.approved === true).length,
+                    pending:  allPhotos.filter(p => p.approved == null && p.claude_analysis).length,
+                    rejected: allPhotos.filter(p => p.approved === false).length,
+                }
+            }),
+        });
+        const data = await res.json();
+        removeThinkingMsg();
+
+        if (data.error) { addBotMsg('Error: ' + data.error); chatHistory.pop(); return; }
+
+        const reply = data.reply || '';
+        chatHistory.push({ role: 'assistant', content: reply });
+
+        if (data.action) {
+            await handleChatAction(data.action, reply, data.chips, data.action_data);
+        } else {
+            addBotMsg(reply, data.chips);
+        }
+
+        sessionCost += data.actual_cost || 0;
+        chatCostTotal += data.actual_cost || 0;
+        updateSessionCost();
+
+    } catch(e) {
+        removeThinkingMsg();
+        addBotMsg('Network error — please try again.');
+        chatHistory.pop();
+    }
+    document.getElementById('chat-send').disabled = false;
+}
+
+async function handleChatAction(action, replyText, chips, actionData) {
+    if (action === 'approve_all_pending') {
+        const pending = allPhotos.filter(p => p.approved == null && p.claude_analysis);
+        for (const p of pending) { await fetch(`/api/photos/${p.id}/approve`, { method: 'POST' }); p.approved = true; }
+        fetch('/api/stats').then(r=>r.json()).then(s=>{
+            document.getElementById('stat-approved').textContent = s.approved;
+            document.getElementById('stat-rejected').textContent = s.rejected;
+            document.getElementById('stat-pending').textContent  = s.pending;
+        });
+        renderGrid();
+        addBotMsg(replyText || `Done — approved ${pending.length} photos!`);
+        showToast(`Approved ${pending.length} photos`, 'success');
+    } else if (action === 'skip_all_pending') {
+        const pending = allPhotos.filter(p => p.approved == null && p.claude_analysis);
+        for (const p of pending) { await fetch(`/api/photos/${p.id}/reject`, { method: 'POST' }); p.approved = false; }
+        renderGrid();
+        addBotMsg(replyText || `Skipped ${pending.length} pending photos.`);
+    } else if (action === 'run_quick_cull') {
+        addBotMsg(replyText || 'Starting Quick Cull…');
+        setTimeout(() => { toggleChat(); enterQuickCull(); }, 500);
+    } else if (action === 'create_group' && actionData) {
+        const res = await fetch('/api/groups/create', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ photo_ids: actionData.ids, theme: actionData.theme }),
+        });
+        const d = await res.json();
+        if (d.status === 'ok') {
+            const gr = await fetch('/api/groups').then(r => r.json());
+            allGroups = gr;
+            groupsByPhotoId = {};
+            allGroups.forEach(g => { (g.photo_ids || []).forEach(id => { groupsByPhotoId[id] = g; }); });
+            renderGrid();
+            addBotMsg(replyText || `Created group "${d.theme}" with ${actionData.ids.length} photos.`);
+            showToast(`Group created: "${d.theme}"`, 'success');
+        } else {
+            addBotMsg('Could not create group: ' + (d.error || 'unknown error'));
+        }
+    } else if (action === 'visual_search' && actionData && actionData.query) {
+        const query = actionData.query;
+
+        // Show searching state
+        addBotMsg(`🔍 Scanning all photos for "${query}"… This takes about a minute.`);
+        document.getElementById('chat-send').disabled = true;
+
+        try {
+            const res = await fetch('/api/visual-search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query }),
+            });
+            const d = await res.json();
+
+            if (d.error) {
+                addBotMsg('Visual search failed: ' + d.error);
+            } else {
+                sessionCost += d.actual_cost || 0;
+                chatCostTotal += d.actual_cost || 0;
+                updateSessionCost();
+
+                const n = d.matches.length;
+                const scanned = d.total_scanned;
+                const costStr = d.actual_cost ? ` (cost: $${d.actual_cost.toFixed(4)})` : '';
+
+                if (n === 0) {
+                    addBotMsg(`I scanned all ${scanned} photos but couldn't find any matching "${query}". Try a different description.${costStr}`);
+                } else {
+                    showVisualSearchResults(d.matches, query);
+                    addBotMsg(
+                        `Found ${n} photo${n !== 1 ? 's' : ''} matching "${query}"${costStr}.`,
+                        ['Clear visual search']
+                    );
+                    // Close chat so the results are visible
+                    chatOpen = false;
+                    document.getElementById('chat-panel').classList.remove('open');
+                    document.getElementById('chat-fab').textContent = '💬';
+                }
+            }
+        } catch(e) {
+            addBotMsg('Visual search failed — please try again.');
+        }
+        document.getElementById('chat-send').disabled = false;
+    } else {
+        addBotMsg(replyText, chips);
+    }
+}
+
+function chatKeydown(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        const text = document.getElementById('chat-input').value.trim();
+        if (text) sendChat(text);
+    }
+}
+
+init().then(() => {
+    // Seed initial history state so back button has somewhere to go
+    history.replaceState({ filter: currentFilter, page: currentPage, search: searchQuery }, '');
+    initTipStrip();
+    loadUsagePill();
+    // Watch approved count and update delivery goal label automatically
+    const approvedEl = document.getElementById('stat-approved');
+    if (approvedEl) {
+        new MutationObserver(() => updateDeliveryLabel()).observe(approvedEl, { childList: true, characterData: true, subtree: true });
+    }
+    updateDeliveryLabel(); // init from localStorage
+});
+
+// ── Fullscreen Zoom ───────────────────────────────────────────────────────────
+let fzPhotoId = null;
+
+function openFullscreen(id) {
+    const photo = allPhotos.find(p => p.id === id);
+    if (!photo) return;
+    // Close the modal if open so fullscreen sits on top cleanly
+    closeModal();
+    fzPhotoId = id;
+    const a = photo.claude_analysis || {};
+    document.getElementById('fz-img').src = `/photo/${id}`;
+    document.getElementById('fz-bar-title').textContent = a.title || photo.filename;
+    document.getElementById('fz-bar-score').textContent = a.score ? `${a.score}/10` : '';
+    const idx = currentListIds.indexOf(id);
+    document.getElementById('fz-prev').disabled = idx <= 0;
+    document.getElementById('fz-next').disabled = idx >= currentListIds.length - 1;
+    document.getElementById('fullscreen-zoom').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeFullscreen() {
+    document.getElementById('fullscreen-zoom').classList.remove('active');
+    document.body.style.overflow = '';
+    fzPhotoId = null;
+}
+
+function fzNav(dir) {
+    if (!fzPhotoId) return;
+    const idx = currentListIds.indexOf(fzPhotoId);
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= currentListIds.length) return;
+    openFullscreen(currentListIds[newIdx]);
+    const photoPage = Math.floor(newIdx / PAGE_SIZE) + 1;
+    if (photoPage !== currentPage) {
+        currentPage = photoPage;
+        renderGrid();
+    }
+}
+
+async function fzAction(action) {
+    if (!fzPhotoId) return;
+    await fetch(`/api/photos/${fzPhotoId}/${action}`, { method: 'POST' });
+    const photo = allPhotos.find(p => p.id === fzPhotoId);
+    if (photo) { lastAction = { id: fzPhotoId, prev: photo.approved }; photo.approved = action === 'approve' ? true : action === 'reject' ? false : null; }
+    const color = action === 'approve' ? 'green' : 'red';
+    const flashEl = document.getElementById(`fz-flash-${color}`);
+    const labelEl = document.getElementById(`fz-label-${color === 'green' ? 'keep' : 'skip'}`);
+    flashEl.classList.remove('show'); labelEl.classList.remove('show');
+    void flashEl.offsetWidth;
+    flashEl.classList.add('show'); labelEl.classList.add('show');
+    setTimeout(() => { flashEl.classList.remove('show'); labelEl.classList.remove('show'); }, 350);
+    // Update header stats quietly
+    fetch('/api/stats').then(r=>r.json()).then(s=>{
+        document.getElementById('stat-approved').textContent = s.approved;
+        document.getElementById('stat-rejected').textContent = s.rejected;
+        document.getElementById('stat-pending').textContent  = s.pending;
+    });
+    setTimeout(() => fzNav(1), 120);
+}
 </script>
+
 </body>
 </html>

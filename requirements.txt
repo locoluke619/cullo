@@ -1,4 +1,7 @@
 Pillow>=10.0.0
+pillow-heif>=0.15.0
+rawpy>=0.18.0
+numpy>=1.24.0
 anthropic>=0.40.0
 flask>=3.0.0
 python-dotenv>=1.0.0

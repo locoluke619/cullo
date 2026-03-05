@@ -3,412 +3,416 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Compare: {{ group.theme }}</title>
+    <title>Compare: {{ group.theme }} — Cullo</title>
+    <link rel="stylesheet" href="/static/style.css">
     <style>
-        :root {
-            --bg: #0f0f0f;
-            --surface: #1a1a1a;
-            --surface-hover: #222;
-            --border: #2a2a2a;
-            --text: #f0f0f0;
-            --text-muted: #777;
-            --accent: #6366f1;
-            --green: #22c55e;
-            --green-bg: rgba(34,197,94,0.08);
-            --green-border: rgba(34,197,94,0.35);
-            --red: #ef4444;
-            --red-bg: rgba(239,68,68,0.08);
-            --red-border: rgba(239,68,68,0.35);
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            min-height: 100vh;
-        }
-
-        /* ---- Header ---- */
-        .header {
+        /* ── Compare-specific layout ── */
+        .compare-header {
             position: sticky;
             top: 0;
             z-index: 100;
-            background: rgba(15,15,15,0.92);
-            backdrop-filter: blur(20px);
+            background: rgba(16,16,18,0.92);
+            backdrop-filter: blur(24px);
             border-bottom: 1px solid var(--border);
-            padding: 16px 28px;
+            padding: 0 24px;
+            height: 60px;
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 14px;
         }
 
         .back-btn {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            background: none;
-            border: 1px solid var(--border);
-            color: var(--text-muted);
-            padding: 7px 14px;
-            border-radius: 8px;
-            font-size: 13px;
-            cursor: pointer;
-            font-family: inherit;
-            transition: all 0.2s;
-            text-decoration: none;
-            flex-shrink: 0;
+            display: flex; align-items: center; gap: 6px;
+            background: transparent; border: 1px solid var(--border);
+            color: var(--text-dim); padding: 6px 13px; border-radius: 8px;
+            font-size: 12px; cursor: pointer; font-family: inherit;
+            transition: all 0.18s; text-decoration: none; flex-shrink: 0;
+        }
+        .back-btn:hover { border-color: rgba(161,161,170,0.4); color: var(--text-muted); }
+
+        .header-info { flex: 1; min-width: 0; }
+        .header-title { font-size: 16px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .header-sub { font-size: 11px; color: var(--text-dim); margin-top: 1px; }
+        .header-sub strong { color: var(--accent); font-weight: 500; }
+        .header-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+
+        kbd {
+            background: rgba(255,255,255,0.07); border: 1px solid var(--border);
+            border-radius: 4px; padding: 2px 6px; font-family: monospace;
+            font-size: 10px; color: var(--text-dim);
         }
 
-        .back-btn:hover { border-color: var(--text-muted); color: var(--text); }
-
-        .header-info { flex: 1; }
-
-        .header-title {
-            font-size: 18px;
-            font-weight: 600;
-        }
-
-        .header-recommendation {
-            font-size: 13px;
-            color: var(--text-muted);
-            margin-top: 2px;
-        }
-
-        .header-recommendation strong {
-            color: var(--accent);
-            font-weight: 500;
-        }
-
-        .header-actions {
-            display: flex;
-            gap: 10px;
-            flex-shrink: 0;
-        }
-
-        .btn {
-            padding: 9px 18px;
-            border: none;
-            border-radius: 9px;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            font-family: inherit;
-            transition: all 0.2s;
-        }
-
-        .btn-best {
-            background: var(--accent);
-            color: white;
-        }
-
-        .btn-best:hover { filter: brightness(1.1); transform: translateY(-1px); }
-
-        .btn-skip-all {
-            background: transparent;
-            color: var(--text-muted);
-            border: 1px solid var(--border);
-        }
-
-        .btn-skip-all:hover { color: var(--red); border-color: var(--red); }
-
-        /* ---- Photo Grid ---- */
+        /* ── Photo grid ── */
         .photos-container {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 2px;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 1px;
             background: var(--border);
         }
 
         .photo-panel {
             background: var(--surface);
-            display: flex;
-            flex-direction: column;
+            display: flex; flex-direction: column;
             transition: background 0.2s;
-        }
-
-        /* Best pick highlight */
-        .photo-panel.is-best {
-            background: #141423;
-        }
-
-        .photo-panel.is-approved {
-            background: var(--green-bg);
-            outline: 2px solid var(--green-border);
-            outline-offset: -2px;
-        }
-
-        .photo-panel.is-rejected {
-            opacity: 0.45;
-        }
-
-        .photo-panel.is-rejected:hover {
-            opacity: 0.9;
-        }
-
-        /* ---- Photo Image ---- */
-        .photo-image-wrap {
             position: relative;
-            cursor: zoom-in;
         }
+        .photo-panel.is-best    { background: #17172a; }
+        .photo-panel.is-approved { outline: 2px solid rgba(34,197,94,0.4); outline-offset: -2px; }
+        .photo-panel.is-rejected { opacity: 0.4; }
+        .photo-panel.is-rejected:hover { opacity: 0.92; transition: opacity 0.2s; }
+        .photo-panel.selected-for-compare { outline: 2px solid var(--accent); outline-offset: -2px; }
+        .photo-panel[style*="display: none"] { display: none !important; }
 
+        /* ── Selection checkbox ── */
+        .compare-cb {
+            position: absolute; top: 10px; left: 10px; z-index: 10;
+            width: 26px; height: 26px; border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.5);
+            background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            font-size: 13px; color: white; font-weight: 700;
+            transition: all 0.15s;
+        }
+        .compare-cb:hover, .photo-panel.selected-for-compare .compare-cb {
+            border-color: var(--accent); background: rgba(167,139,250,0.3);
+        }
+        .photo-panel.selected-for-compare .compare-cb::after { content: '✓'; }
+
+        /* ── Image section ── */
+        .photo-image-wrap {
+            position: relative; cursor: zoom-in; background: #000;
+        }
         .photo-img {
-            width: 100%;
-            aspect-ratio: 4/3;
-            object-fit: cover;
-            display: block;
-            transition: transform 0.3s;
+            width: 100%; aspect-ratio: 4/3; object-fit: cover;
+            display: block; transition: opacity 0.2s;
         }
-
-        .photo-image-wrap:hover .photo-img {
-            transform: scale(1.01);
-        }
+        .photo-image-wrap:hover .photo-img { opacity: 0.93; }
 
         .best-badge {
-            position: absolute;
-            top: 12px;
-            left: 12px;
-            background: var(--accent);
-            color: white;
-            font-size: 11px;
-            font-weight: 700;
-            padding: 4px 10px;
-            border-radius: 20px;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
+            position: absolute; top: 11px; left: 42px;
+            background: var(--accent); color: white;
+            font-size: 10px; font-weight: 700;
+            padding: 4px 10px; border-radius: 20px;
+            letter-spacing: 0.4px; text-transform: uppercase;
         }
 
+        /* ── Interactive status badge ── */
+        .status-badge-wrap {
+            position: absolute; top: 11px; right: 11px;
+            z-index: 5;
+        }
         .status-badge {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            font-size: 11px;
-            font-weight: 700;
-            padding: 4px 10px;
-            border-radius: 20px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            font-size: 10px; font-weight: 700;
+            padding: 4px 10px; border-radius: 20px;
+            text-transform: uppercase; letter-spacing: 0.4px;
+            cursor: pointer; transition: opacity 0.15s;
+            display: flex; align-items: center; gap: 4px;
         }
-
         .status-badge.approved { background: var(--green); color: white; }
-        .status-badge.rejected { background: var(--red); color: white; }
+        .status-badge.rejected { background: var(--red);   color: white; }
+        .status-badge .badge-arrow { font-size: 8px; opacity: 0.7; }
 
-        /* ---- Notes section ---- */
-        .photo-notes {
-            padding: 18px 20px;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .photo-filename {
-            font-size: 11px;
-            color: var(--text-muted);
-            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
-        }
-
-        .photo-comparison-note {
-            font-size: 14px;
-            line-height: 1.65;
-            color: var(--text);
-            flex: 1;
-            border-left: 3px solid var(--accent);
-            padding-left: 12px;
-        }
-
-        .photo-comparison-note.empty {
-            color: var(--text-muted);
-            font-style: italic;
-            border-left-color: var(--border);
-        }
-
-        .photo-score-line {
-            font-size: 12px;
-            color: var(--text-muted);
-        }
-
-        .photo-score-line span {
-            color: var(--accent);
-            font-weight: 600;
-        }
-
-        /* ---- Action buttons ---- */
-        .photo-actions {
-            padding: 12px 20px 20px;
-            display: flex;
-            gap: 8px;
-        }
-
-        .btn-add {
-            flex: 2;
-            padding: 11px;
-            background: var(--green);
-            color: white;
-            border: none;
-            border-radius: 9px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            font-family: inherit;
-            transition: filter 0.2s;
-        }
-
-        .btn-add:hover { filter: brightness(1.1); }
-
-        .btn-skip {
-            flex: 1;
-            padding: 11px;
-            background: transparent;
-            color: var(--text-muted);
-            border: 1px solid var(--border);
-            border-radius: 9px;
-            font-size: 14px;
-            cursor: pointer;
-            font-family: inherit;
-            transition: all 0.2s;
-        }
-
-        .btn-skip:hover { border-color: var(--red); color: var(--red); }
-
-        .btn-undo {
-            flex: 1;
-            padding: 11px;
-            background: transparent;
-            color: var(--text-muted);
-            border: 1px solid var(--border);
-            border-radius: 9px;
-            font-size: 14px;
-            cursor: pointer;
-            font-family: inherit;
-        }
-
-        /* ---- Zoom lightbox ---- */
-        .zoom-overlay {
+        .badge-menu {
             display: none;
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.95);
-            z-index: 9999;
-            align-items: center;
-            justify-content: center;
-            cursor: zoom-out;
+            position: absolute; top: calc(100% + 5px); right: 0;
+            background: rgba(24,24,28,0.97); border: 1px solid var(--border);
+            border-radius: 10px; overflow: hidden; min-width: 130px;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.6);
+            flex-direction: column;
         }
+        .status-badge-wrap:hover .badge-menu { display: flex; }
+        .badge-menu button {
+            background: none; border: none; color: var(--text-muted);
+            padding: 8px 14px; font-size: 12px; text-align: left;
+            cursor: pointer; font-family: inherit; transition: background 0.12s;
+            white-space: nowrap;
+        }
+        .badge-menu button:hover { background: rgba(255,255,255,0.07); color: var(--text); }
+        .badge-menu button.green { color: rgba(34,197,94,0.9); }
+        .badge-menu button.green:hover { background: rgba(34,197,94,0.1); }
+        .badge-menu button.red   { color: rgba(239,68,68,0.9); }
+        .badge-menu button.red:hover   { background: rgba(239,68,68,0.08); }
 
+        /* ── Analysis panel ── */
+        .photo-analysis {
+            padding: 18px 20px 4px; flex: 1;
+            display: flex; flex-direction: column; gap: 0;
+        }
+        .photo-filename {
+            font-size: 10px; color: var(--text-dim);
+            font-family: 'SF Mono', Monaco, monospace; margin-bottom: 10px;
+        }
+        .analysis-row { padding: 10px 0; border-bottom: 1px solid var(--border); }
+        .analysis-row:last-child { border-bottom: none; }
+        .ar-label {
+            font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
+            color: var(--text-dim); font-weight: 600; margin-bottom: 4px;
+        }
+        .ar-text { font-size: 12px; line-height: 1.6; color: var(--text-muted); }
+        .ar-text.accent-left { border-left: 2px solid var(--accent); padding-left: 10px; }
+        .ar-text.empty { color: var(--text-dim); font-style: italic; }
+        .score-line { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .score-num { font-size: 22px; font-weight: 700; color: var(--accent); }
+        .score-label-text { font-size: 11px; color: var(--text-dim); }
+
+        .mini-panel { border-radius: 7px; padding: 8px 10px; margin-top: 6px; }
+        .mini-panel.str { background: rgba(34,197,94,0.07); border: 1px solid rgba(34,197,94,0.18); }
+        .mini-panel.wk  { background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.16); }
+        .mini-panel-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; margin-bottom: 3px; }
+        .mini-panel.str .mini-panel-label { color: var(--green); }
+        .mini-panel.wk  .mini-panel-label { color: var(--red);   }
+        .mini-panel-text { font-size: 11px; line-height: 1.55; color: var(--text-muted); }
+
+        .tip-mini { font-size: 11px; line-height: 1.5; color: var(--text-muted);
+            padding: 6px 9px; background: var(--accent-dim); border: 1px solid var(--accent-border);
+            border-radius: 6px; margin-top: 5px; display: flex; gap: 6px; }
+        .tip-mini-icon { color: var(--accent); flex-shrink: 0; }
+
+        /* ── Action buttons ── */
+        .photo-actions { padding: 13px 20px 18px; display: flex; gap: 8px; }
+        .btn-add {
+            flex: 2; padding: 10px; background: var(--green); color: white;
+            border: none; border-radius: 9px; font-size: 13px; font-weight: 600;
+            cursor: pointer; font-family: inherit; transition: filter 0.18s;
+        }
+        .btn-add:hover { filter: brightness(1.1); }
+        .btn-skip {
+            flex: 1; padding: 10px; background: transparent; color: var(--text-dim);
+            border: 1px solid var(--border); border-radius: 9px; font-size: 13px;
+            cursor: pointer; font-family: inherit; transition: all 0.18s;
+        }
+        .btn-skip:hover { border-color: var(--red); color: var(--red); }
+        .btn-undo-p {
+            flex: 1; padding: 10px; background: transparent; color: var(--text-dim);
+            border: 1px solid var(--border); border-radius: 9px; font-size: 13px;
+            cursor: pointer; font-family: inherit; transition: all 0.18s;
+        }
+        .btn-undo-p:hover { border-color: rgba(161,161,170,0.4); }
+
+        /* ── Pagination ── */
+        .pager {
+            padding: 20px 24px; display: flex; align-items: center; justify-content: center;
+            gap: 12px; border-top: 1px solid var(--border);
+        }
+        .pager-btn {
+            padding: 7px 18px; background: transparent; border: 1px solid var(--border);
+            color: var(--text-dim); border-radius: 8px; font-size: 13px;
+            cursor: pointer; font-family: inherit; transition: all 0.15s;
+        }
+        .pager-btn:hover:not(:disabled) { border-color: var(--accent-border); color: var(--accent); }
+        .pager-btn:disabled { opacity: 0.3; cursor: default; }
+        .pager-info { font-size: 13px; color: var(--text-dim); }
+
+        /* ── Floating compare-selected bar ── */
+        #sel-compare-bar {
+            display: none; position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+            background: rgba(24,24,28,0.97); border: 1px solid rgba(167,139,250,0.35);
+            border-radius: 40px; padding: 10px 20px; gap: 14px; align-items: center;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6); z-index: 500; white-space: nowrap;
+        }
+        #sel-compare-bar.visible { display: flex; }
+
+        /* ── Zoom overlay ── */
+        .zoom-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.96); z-index: 9999;
+            align-items: center; justify-content: center;
+        }
         .zoom-overlay.active { display: flex; }
-
-        .zoom-overlay img {
-            max-width: 94vw;
-            max-height: 94vh;
-            object-fit: contain;
-            border-radius: 4px;
-        }
-
+        .zoom-overlay img { max-width: 88vw; max-height: 90vh; object-fit: contain; border-radius: 4px; cursor: zoom-out; }
         .zoom-close {
-            position: fixed;
-            top: 20px;
-            right: 24px;
-            width: 42px;
-            height: 42px;
-            border-radius: 50%;
-            border: none;
-            background: rgba(255,255,255,0.1);
-            color: white;
-            font-size: 22px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            position: fixed; top: 18px; right: 22px; width: 40px; height: 40px;
+            border-radius: 50%; border: 1px solid rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.08); color: white; font-size: 20px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: background 0.18s;
         }
-
-        /* ---- Toast ---- */
-        .toast {
-            position: fixed;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%) translateY(80px);
-            background: var(--surface);
-            color: var(--text);
-            padding: 11px 22px;
-            border-radius: 10px;
-            font-size: 14px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-            transition: transform 0.3s ease;
-            z-index: 2000;
-            border: 1px solid var(--border);
+        .zoom-close:hover { background: rgba(239,68,68,0.35); }
+        .zoom-nav {
+            position: fixed; top: 50%; transform: translateY(-50%);
+            width: 48px; height: 64px; border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.08); color: white; font-size: 22px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: background 0.18s; z-index: 10000; user-select: none;
         }
-
-        .toast.show { transform: translateX(-50%) translateY(0); }
-        .toast.success { border-color: rgba(34,197,94,0.4); }
-        .toast.error { border-color: rgba(239,68,68,0.4); }
+        .zoom-nav:hover { background: rgba(255,255,255,0.2); }
+        .zoom-nav.prev { left: 14px; }
+        .zoom-nav.next { right: 14px; }
+        .zoom-nav:disabled { opacity: 0.2; cursor: default; }
+        .zoom-counter {
+            position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+            font-size: 12px; color: rgba(255,255,255,0.5); letter-spacing: 1px;
+            pointer-events: none;
+        }
 
         @media (max-width: 700px) {
             .photos-container { grid-template-columns: 1fr; }
-            .header { flex-wrap: wrap; }
+            .compare-header { flex-wrap: wrap; height: auto; padding: 10px 14px; }
             .header-actions { width: 100%; }
-            .btn-best, .btn-skip-all { flex: 1; }
         }
     </style>
 </head>
 <body>
 
-<!-- Header -->
-<div class="header">
-    <a class="back-btn" href="/">← Back</a>
+<!-- ── Header ── -->
+<div class="compare-header">
+    <a class="back-btn" href="/dashboard">← Back to Dashboard</a>
     <div class="header-info">
         <div class="header-title">{{ group.theme or "Similar Shots" }}</div>
-        {% if group.recommendation %}
-        <div class="header-recommendation">
-            <strong>Claude recommends:</strong> {{ group.recommendation }}
+        <div class="header-sub" id="header-sub">
+            {% if group.recommendation %}<strong>Claude's pick:</strong> {{ group.recommendation }}{% endif %}
         </div>
-        {% endif %}
     </div>
     <div class="header-actions">
-        <span style="font-size:11px;color:var(--text-muted);margin-right:8px"><kbd style="background:rgba(255,255,255,0.1);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-family:monospace">B</kbd> best pick &nbsp; <kbd style="background:rgba(255,255,255,0.1);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-family:monospace">X</kbd> skip all</span>
-        <button class="btn btn-skip-all" onclick="skipAll()">Skip All</button>
-        <button class="btn btn-best" onclick="addBest()">Add Claude's Best Pick</button>
+        <span style="font-size:11px;color:var(--text-dim)">
+            <kbd>B</kbd> best &nbsp; <kbd>X</kbd> skip all &nbsp; <kbd>A</kbd> select all &nbsp; <kbd>Esc</kbd> zoom out
+        </span>
+        <button class="btn btn-ghost" id="btn-select-all" onclick="toggleSelectAll()"
+            title="Select all photos on this page for comparison">☐ Select All</button>
+        <button class="btn btn-primary" id="btn-ai-compare" onclick="runAIComparison()"
+            style="background:var(--accent);font-weight:700;letter-spacing:0.2px"
+            title="Compare all photos with Claude AI (or selected if you've checked some)">
+            ✦ Compare with Claude AI
+        </button>
+        <button class="btn btn-ghost" onclick="skipAll()">Skip All</button>
+        <button class="btn btn-primary" onclick="addBest()">Add Claude's Best Pick</button>
     </div>
 </div>
 
-<!-- Photos side by side -->
-<div class="photos-container">
+<!-- AI Comparison Result Banner -->
+<div id="ai-result-banner" style="display:none;background:rgba(167,139,250,0.08);border-bottom:1px solid rgba(167,139,250,0.25);padding:14px 24px;">
+    <div style="display:flex;align-items:flex-start;gap:14px;max-width:1200px;margin:0 auto">
+        <div style="color:var(--accent);font-size:18px;flex-shrink:0;margin-top:1px">✦</div>
+        <div style="flex:1">
+            <div style="font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--accent);font-weight:600;margin-bottom:4px">Claude's Comparison</div>
+            <div id="ai-recommendation" style="font-size:14px;color:var(--text);line-height:1.6"></div>
+        </div>
+        <div style="font-size:11px;color:var(--text-dim);flex-shrink:0;text-align:right"><div id="ai-cost"></div></div>
+    </div>
+</div>
+
+<!-- ── Photo Panels ── -->
+<div class="photos-container" id="photos-container">
     {% for photo in photos %}
-    {% set analysis = photo.get('claude_analysis', {}) or {} %}
+    {% set a = photo.get('claude_analysis', {}) or {} %}
     {% set note = (group.get('photo_notes') or {}).get(photo.id | string, '') %}
-    {% set is_best = photo.id == group.best_photo_id %}
+    {% set is_best     = photo.id == group.best_photo_id %}
     {% set is_approved = photo.get('approved') == True %}
     {% set is_rejected = photo.get('approved') == False %}
+    {% set score = a.get('score', 0) %}
+    {% set analyzed = a and not a.get('error') and score %}
+    {% set r = a.get('score_reasoning', {}) or {} %}
 
     <div class="photo-panel {% if is_best %}is-best{% endif %} {% if is_approved %}is-approved{% endif %} {% if is_rejected %}is-rejected{% endif %}"
-         id="panel-{{ photo.id }}">
+         id="panel-{{ photo.id }}"
+         data-photo-id="{{ photo.id }}">
 
-        <div class="photo-image-wrap" onclick="zoom('/photo/{{ photo.id }}')">
-            <img class="photo-img" src="/photo/{{ photo.id }}" alt="{{ photo.filename }}" loading="lazy">
+        <!-- Image -->
+        <div class="photo-image-wrap" onclick="zoom('/photo/{{ photo.id }}', {{ photo.id }})">
+            <!-- Selection checkbox -->
+            <div class="compare-cb" id="cb-{{ photo.id }}"
+                onclick="event.stopPropagation(); toggleSelect({{ photo.id }})"
+                title="Select for comparison"></div>
+
+            <img class="photo-img" src="/thumb/{{ photo.id }}" data-full="/photo/{{ photo.id }}"
+                 alt="{{ photo.filename }}" loading="lazy">
+
             {% if is_best %}<div class="best-badge">★ Claude's Pick</div>{% endif %}
-            {% if is_approved %}<div class="status-badge approved">Added</div>{% endif %}
-            {% if is_rejected %}<div class="status-badge rejected">Skipped</div>{% endif %}
+
+            <!-- Interactive status badge -->
+            <div class="status-badge-wrap" id="status-wrap-{{ photo.id }}" onclick="event.stopPropagation()">
+                {% if is_approved %}
+                <div class="status-badge approved" id="status-{{ photo.id }}">Added <span class="badge-arrow">▾</span></div>
+                <div class="badge-menu" id="badge-menu-{{ photo.id }}">
+                    <button class="red" onclick="doAction({{ photo.id }},'reject')">✕ Skip this</button>
+                    <button onclick="doAction({{ photo.id }},'reset')">↩ Reset to pending</button>
+                </div>
+                {% elif is_rejected %}
+                <div class="status-badge rejected" id="status-{{ photo.id }}">Skipped <span class="badge-arrow">▾</span></div>
+                <div class="badge-menu" id="badge-menu-{{ photo.id }}">
+                    <button class="green" onclick="doAction({{ photo.id }},'approve')">✓ Approve</button>
+                    <button onclick="doAction({{ photo.id }},'reset')">↩ Reset to pending</button>
+                </div>
+                {% else %}
+                <div style="display:none" id="status-{{ photo.id }}"></div>
+                <div class="badge-menu" id="badge-menu-{{ photo.id }}" style="display:none"></div>
+                {% endif %}
+            </div>
         </div>
 
-        <div class="photo-notes">
+        <!-- Analysis -->
+        <div class="photo-analysis">
             <div class="photo-filename">{{ photo.filename }}</div>
-            <div class="photo-comparison-note {% if not note %}empty{% endif %}">
-                {{ note if note else "No comparison note available" }}
+
+            {% if analyzed %}
+            <div class="score-line">
+                <div class="score-num">{{ score }}/10</div>
+                <div class="score-label-text">{{ a.get('best_use', '') }}</div>
             </div>
-            <div class="photo-score-line">
-                Overall AI score: <span>{{ analysis.get('score', '?') }}/10</span>
+
+            <div class="analysis-row">
+                <div class="ar-label">Caption</div>
+                <div class="ar-text accent-left">
+                    {% if note %}{{ note }}{% else %}{{ a.get('summary', '—') }}{% endif %}
+                </div>
+                <div id="ai-note-{{ photo.id }}" class="ar-text" style="display:none;margin-top:8px;padding:8px 10px;background:rgba(167,139,250,0.08);border:1px solid rgba(167,139,250,0.25);border-radius:6px;font-style:italic"></div>
             </div>
+
+            <button onclick="toggleDetail(this)" style="margin:8px 0 4px;padding:4px 12px;background:transparent;border:1px solid var(--border);border-radius:20px;color:var(--text-dim);font-size:11px;cursor:pointer;font-family:inherit;transition:all 0.15s"
+                onmouseover="this.style.borderColor='var(--accent-border)';this.style.color='var(--accent)'"
+                onmouseout="this.style.borderColor='';this.style.color=''">Show Full Analysis ▼</button>
+
+            <div class="detail-rows" style="display:none">
+                {% if r.get('strengths') or r.get('weaknesses') %}
+                <div class="analysis-row">
+                    <div class="ar-label">Score Reasoning</div>
+                    {% if r.get('strengths') %}
+                    <div class="mini-panel str"><div class="mini-panel-label">What Works</div><div class="mini-panel-text">{{ r.get('strengths') }}</div></div>
+                    {% endif %}
+                    {% if r.get('weaknesses') %}
+                    <div class="mini-panel wk" style="margin-top:6px"><div class="mini-panel-label">What's Holding It Back</div><div class="mini-panel-text">{{ r.get('weaknesses') }}</div></div>
+                    {% endif %}
+                </div>
+                {% endif %}
+                {% if a.get('composition') %}
+                <div class="analysis-row"><div class="ar-label">Composition</div><div class="ar-text">{{ a.get('composition') }}</div></div>
+                {% endif %}
+                {% if a.get('technical') %}
+                <div class="analysis-row"><div class="ar-label">Technical Quality</div><div class="ar-text">{{ a.get('technical') }}</div></div>
+                {% endif %}
+                {% if a.get('mood') or a.get('story') %}
+                <div class="analysis-row"><div class="ar-label">Mood &amp; Story</div><div class="ar-text">{{ a.get('mood', '') }} {{ a.get('story', '') }}</div></div>
+                {% endif %}
+                {% set eyes_text = [a.get('eyes_check', ''), a.get('expression_notes', '')] | select | join(' — ') %}
+                {% if eyes_text and eyes_text not in ['N/A', 'No people'] %}
+                <div class="analysis-row"><div class="ar-label">Eyes / Expression</div><div class="ar-text">{{ eyes_text }}</div></div>
+                {% endif %}
+                {% if a.get('editing_tips') %}
+                <div class="analysis-row">
+                    <div class="ar-label">Editing Tips</div>
+                    {% for tip in a.get('editing_tips', []) %}
+                    <div class="tip-mini"><span class="tip-mini-icon">✦</span><span>{{ tip }}</span></div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+
+            {% else %}
+            <div class="analysis-row"><div class="ar-text empty">No Claude analysis available for this photo yet.</div></div>
+            {% endif %}
         </div>
 
+        <!-- Actions -->
         <div class="photo-actions" id="actions-{{ photo.id }}">
             {% if is_approved %}
-                <button class="btn-undo" onclick="doAction({{ photo.id }}, 'reset')">Undo</button>
-                <button class="btn-skip" onclick="doAction({{ photo.id }}, 'reject')">Remove</button>
+                <button class="btn-undo-p" onclick="doAction({{ photo.id }}, 'reset')">↩ Reset</button>
+                <button class="btn-skip"   onclick="doAction({{ photo.id }}, 'reject')">✕ Remove</button>
             {% elif is_rejected %}
-                <button class="btn-add"  onclick="doAction({{ photo.id }}, 'approve')">Add to Website</button>
-                <button class="btn-undo" onclick="doAction({{ photo.id }}, 'reset')">Undo</button>
+                <button class="btn-add"    onclick="doAction({{ photo.id }}, 'approve')">✓ Add to Website</button>
+                <button class="btn-undo-p" onclick="doAction({{ photo.id }}, 'reset')">↩ Reset</button>
             {% else %}
-                <button class="btn-add"  onclick="doAction({{ photo.id }}, 'approve')">Add to Website</button>
+                <button class="btn-add"  onclick="doAction({{ photo.id }}, 'approve')">✓ Add to Website</button>
                 <button class="btn-skip" onclick="doAction({{ photo.id }}, 'reject')">Skip</button>
             {% endif %}
         </div>
@@ -416,18 +420,153 @@
     {% endfor %}
 </div>
 
-<!-- Zoom lightbox -->
-<div class="zoom-overlay" id="zoom" onclick="closeZoom()">
+<!-- Pagination -->
+<div class="pager" id="pager" style="display:none">
+    <button class="pager-btn" id="pager-prev" onclick="goPage(currentPage - 1)">← Prev</button>
+    <span class="pager-info" id="pager-info"></span>
+    <button class="pager-btn" id="pager-next" onclick="goPage(currentPage + 1)">Next →</button>
+</div>
+
+<!-- ── Floating select-to-compare bar ── -->
+<div id="sel-compare-bar">
+    <span style="font-size:13px;font-weight:700;color:var(--accent)" id="sel-bar-count">0 selected</span>
+    <button onclick="runAIComparison(true)"
+        style="padding:8px 18px;background:var(--accent);border:none;border-radius:20px;color:white;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
+        ✦ Compare Selected with Claude
+    </button>
+    <button onclick="toggleSelectAll()"
+        style="padding:8px 14px;background:transparent;border:1px solid rgba(167,139,250,0.35);border-radius:20px;color:var(--accent);font-size:12px;cursor:pointer;font-family:inherit">
+        Select All
+    </button>
+    <button onclick="clearSelection()"
+        style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:18px;line-height:1;padding:2px" title="Clear selection (Esc)">×</button>
+</div>
+
+<!-- ── Zoom lightbox ── -->
+<div class="zoom-overlay" id="zoom" onclick="if(event.target===this)closeZoom()">
     <button class="zoom-close" onclick="closeZoom()">&times;</button>
-    <img id="zoom-img" src="" alt="">
+    <button class="zoom-nav prev" id="zoom-prev" onclick="zoomNav(-1)">&#8592;</button>
+    <img id="zoom-img" src="" alt="" onclick="closeZoom()">
+    <button class="zoom-nav next" id="zoom-next" onclick="zoomNav(1)">&#8594;</button>
+    <div class="zoom-counter" id="zoom-counter"></div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
-const bestPhotoId = {{ group.best_photo_id }};
+const bestPhotoId = {{ group.best_photo_id | tojson }};
 const allPhotoIds = {{ group.photo_ids | tojson }};
+const PAGE_SIZE   = 10;
+let currentPage   = 1;
+let selectedForCompare = new Set();
 
+// ── Pagination ────────────────────────────────────────────────────────────────
+function getAllPanels() {
+    return Array.from(document.querySelectorAll('.photo-panel[data-photo-id]'));
+}
+
+function renderPage() {
+    const panels = getAllPanels();
+    const total  = panels.length;
+    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const end   = start + PAGE_SIZE;
+
+    panels.forEach((panel, i) => {
+        panel.style.display = (i >= start && i < end) ? '' : 'none';
+    });
+
+    // Update pager
+    const pager = document.getElementById('pager');
+    if (totalPages <= 1) { pager.style.display = 'none'; return; }
+    pager.style.display = 'flex';
+    document.getElementById('pager-info').textContent =
+        `Page ${currentPage} of ${totalPages}  ·  ${total} photos`;
+    document.getElementById('pager-prev').disabled = currentPage <= 1;
+    document.getElementById('pager-next').disabled = currentPage >= totalPages;
+
+    // Update header sub text with page info
+    const sub = document.getElementById('header-sub');
+    const existing = sub.dataset.recommendation || sub.innerHTML;
+    sub.dataset.recommendation = sub.dataset.recommendation || sub.innerHTML;
+    sub.innerHTML = `${sub.dataset.recommendation ? sub.dataset.recommendation + '&ensp;·&ensp;' : ''}Showing ${start+1}–${Math.min(end,total)} of ${total} photos`;
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function goPage(n) {
+    currentPage = n;
+    renderPage();
+}
+
+// ── Selection for compare ─────────────────────────────────────────────────────
+function toggleSelect(id) {
+    if (selectedForCompare.has(id)) {
+        selectedForCompare.delete(id);
+    } else {
+        selectedForCompare.add(id);
+    }
+    const panel = document.getElementById(`panel-${id}`);
+    const cb    = document.getElementById(`cb-${id}`);
+    if (panel) panel.classList.toggle('selected-for-compare', selectedForCompare.has(id));
+    if (cb) cb.style.borderColor = selectedForCompare.has(id) ? 'var(--accent)' : '';
+    updateSelBar();
+}
+
+function clearSelection() {
+    selectedForCompare.clear();
+    document.querySelectorAll('.photo-panel.selected-for-compare')
+        .forEach(p => p.classList.remove('selected-for-compare'));
+    document.querySelectorAll('.compare-cb').forEach(cb => cb.style.borderColor = '');
+    updateSelBar();
+    document.getElementById('btn-select-all').textContent = '☐ Select All';
+}
+
+function toggleSelectAll() {
+    // Only operate on currently visible panels
+    const visible = getAllPanels().filter(p => p.style.display !== 'none');
+    const ids     = visible.map(p => parseInt(p.dataset.photoId));
+    const allSel  = ids.every(id => selectedForCompare.has(id));
+
+    if (allSel) {
+        // Deselect all visible
+        ids.forEach(id => {
+            selectedForCompare.delete(id);
+            const panel = document.getElementById(`panel-${id}`);
+            const cb    = document.getElementById(`cb-${id}`);
+            if (panel) panel.classList.remove('selected-for-compare');
+            if (cb) cb.style.borderColor = '';
+        });
+        document.getElementById('btn-select-all').textContent = '☐ Select All';
+    } else {
+        // Select all visible
+        ids.forEach(id => {
+            selectedForCompare.add(id);
+            const panel = document.getElementById(`panel-${id}`);
+            const cb    = document.getElementById(`cb-${id}`);
+            if (panel) panel.classList.add('selected-for-compare');
+            if (cb) cb.style.borderColor = 'var(--accent)';
+        });
+        document.getElementById('btn-select-all').textContent = '☑ Deselect All';
+    }
+    updateSelBar();
+}
+
+function updateSelBar() {
+    const bar = document.getElementById('sel-compare-bar');
+    const n   = selectedForCompare.size;
+    if (n >= 2) {
+        bar.classList.add('visible');
+        document.getElementById('sel-bar-count').textContent = `${n} selected`;
+    } else {
+        bar.classList.remove('visible');
+    }
+}
+
+// ── Actions ───────────────────────────────────────────────────────────────────
 async function doAction(id, action) {
     const res = await fetch(`/api/photos/${id}/${action}`, { method: 'POST' });
     if (!res.ok) { showToast('Something went wrong', 'error'); return; }
@@ -438,36 +577,54 @@ async function doAction(id, action) {
         panel.classList.add('is-approved');
         panel.classList.remove('is-rejected');
         setActions(id, 'approved');
+        updateStatusBadge(id, 'approved');
         showToast('Added to website!', 'success');
-        updateBadge(id, 'approved');
     } else if (action === 'reject') {
         panel.classList.add('is-rejected');
         panel.classList.remove('is-approved');
         setActions(id, 'rejected');
+        updateStatusBadge(id, 'rejected');
         showToast('Skipped', '');
-        updateBadge(id, 'rejected');
     } else {
         panel.classList.remove('is-approved', 'is-rejected');
         setActions(id, 'pending');
-        showToast('Reset', '');
-        updateBadge(id, null);
+        updateStatusBadge(id, null);
+        showToast('Reset to pending', '');
     }
 }
 
-function updateBadge(id, state) {
-    // Remove existing status badge (not the "best" badge)
-    const panel = document.getElementById(`panel-${id}`);
-    panel.querySelectorAll('.status-badge').forEach(b => b.remove());
+function updateStatusBadge(id, state) {
+    const badge = document.getElementById(`status-${id}`);
+    const menu  = document.getElementById(`badge-menu-${id}`);
+    if (!badge) return;
+
     if (state === 'approved') {
-        const b = document.createElement('div');
-        b.className = 'status-badge approved';
-        b.textContent = 'Added';
-        panel.querySelector('.photo-image-wrap').appendChild(b);
+        badge.className = 'status-badge approved';
+        badge.innerHTML = 'Added <span class="badge-arrow">▾</span>';
+        badge.style.display = '';
+        if (menu) {
+            menu.style.display = '';
+            menu.innerHTML = `
+                <button class="red" onclick="doAction(${id},'reject')">✕ Skip this</button>
+                <button onclick="doAction(${id},'reset')">↩ Reset to pending</button>`;
+        }
+        const wrap = document.getElementById(`status-wrap-${id}`);
+        if (wrap) wrap.style.display = '';
     } else if (state === 'rejected') {
-        const b = document.createElement('div');
-        b.className = 'status-badge rejected';
-        b.textContent = 'Skipped';
-        panel.querySelector('.photo-image-wrap').appendChild(b);
+        badge.className = 'status-badge rejected';
+        badge.innerHTML = 'Skipped <span class="badge-arrow">▾</span>';
+        badge.style.display = '';
+        if (menu) {
+            menu.style.display = '';
+            menu.innerHTML = `
+                <button class="green" onclick="doAction(${id},'approve')">✓ Approve</button>
+                <button onclick="doAction(${id},'reset')">↩ Reset to pending</button>`;
+        }
+        const wrap = document.getElementById(`status-wrap-${id}`);
+        if (wrap) wrap.style.display = '';
+    } else {
+        badge.style.display = 'none';
+        if (menu) menu.style.display = 'none';
     }
 }
 
@@ -475,58 +632,179 @@ function setActions(id, state) {
     const el = document.getElementById(`actions-${id}`);
     if (state === 'approved') {
         el.innerHTML = `
-            <button class="btn-undo" onclick="doAction(${id},'reset')">Undo</button>
-            <button class="btn-skip" onclick="doAction(${id},'reject')">Remove</button>`;
+            <button class="btn-undo-p" onclick="doAction(${id},'reset')">↩ Reset</button>
+            <button class="btn-skip"   onclick="doAction(${id},'reject')">✕ Remove</button>`;
     } else if (state === 'rejected') {
         el.innerHTML = `
-            <button class="btn-add"  onclick="doAction(${id},'approve')">Add to Website</button>
-            <button class="btn-undo" onclick="doAction(${id},'reset')">Undo</button>`;
+            <button class="btn-add"    onclick="doAction(${id},'approve')">✓ Add to Website</button>
+            <button class="btn-undo-p" onclick="doAction(${id},'reset')">↩ Reset</button>`;
     } else {
         el.innerHTML = `
-            <button class="btn-add"  onclick="doAction(${id},'approve')">Add to Website</button>
+            <button class="btn-add"  onclick="doAction(${id},'approve')">✓ Add to Website</button>
             <button class="btn-skip" onclick="doAction(${id},'reject')">Skip</button>`;
     }
 }
 
 async function addBest() {
+    if (!bestPhotoId) return;
     await doAction(bestPhotoId, 'approve');
 }
 
 async function skipAll() {
-    await Promise.all(allPhotoIds.map(id => fetch(`/api/photos/${id}/reject`, { method: 'POST' })));
+    await Promise.all(allPhotoIds.map(id =>
+        fetch(`/api/photos/${id}/reject`, { method: 'POST' })
+    ));
     allPhotoIds.forEach(id => {
         const panel = document.getElementById(`panel-${id}`);
         if (panel) {
             panel.classList.add('is-rejected');
             panel.classList.remove('is-approved');
             setActions(id, 'rejected');
-            updateBadge(id, 'rejected');
+            updateStatusBadge(id, 'rejected');
         }
     });
     showToast('All skipped', '');
 }
 
-function zoom(src) {
-    document.getElementById('zoom-img').src = src;
-    document.getElementById('zoom').classList.add('active');
+// ── AI Comparison ─────────────────────────────────────────────────────────────
+async function runAIComparison(selectionOnly = false) {
+    const btn = document.getElementById('btn-ai-compare');
+
+    // Determine which IDs to send
+    let idsToSend;
+    if (selectionOnly && selectedForCompare.size >= 2) {
+        idsToSend = [...selectedForCompare];
+    } else {
+        idsToSend = allPhotoIds.filter(id => {
+            const panel = document.getElementById(`panel-${id}`);
+            return panel && panel.querySelector('.score-num');
+        });
+    }
+
+    if (idsToSend.length < 2) {
+        showToast('Need at least 2 analyzed photos to compare.', 'error');
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = '✦ Analyzing…';
+    showToast(`Sending ${idsToSend.length} photos to Claude…`, '');
+
+    try {
+        const res = await fetch('/api/compare-photos', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ ids: idsToSend }),
+        });
+        const data = await res.json();
+
+        if (data.error) {
+            showToast('Comparison failed: ' + data.error, 'error');
+            btn.disabled = false;
+            btn.textContent = '✦ Compare with Claude AI';
+            return;
+        }
+
+        // Show banner
+        document.getElementById('ai-recommendation').textContent = data.recommendation || '';
+        if (data.actual_cost !== undefined) {
+            document.getElementById('ai-cost').innerHTML =
+                `${data.input_tokens.toLocaleString()} in + ${data.output_tokens.toLocaleString()} out<br>` +
+                `<strong style="color:var(--accent)">$${data.actual_cost.toFixed(6)}</strong>`;
+        }
+        document.getElementById('ai-result-banner').style.display = '';
+
+        // Highlight best
+        document.querySelectorAll('.photo-panel').forEach(p => p.classList.remove('is-best'));
+        if (data.best_photo_id) {
+            const bestPanel = document.getElementById(`panel-${data.best_photo_id}`);
+            if (bestPanel) {
+                bestPanel.classList.add('is-best');
+                // Navigate to correct page if needed
+                const panels = getAllPanels();
+                const idx = panels.indexOf(bestPanel);
+                if (idx >= 0) {
+                    const targetPage = Math.floor(idx / PAGE_SIZE) + 1;
+                    if (targetPage !== currentPage) goPage(targetPage);
+                }
+                bestPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+
+        // Per-photo comparison notes
+        for (const [photoId, note] of Object.entries(data.notes || {})) {
+            const noteEl = document.getElementById(`ai-note-${photoId}`);
+            if (noteEl) { noteEl.textContent = note; noteEl.style.display = ''; }
+        }
+
+        btn.textContent = '✓ Comparison done';
+        showToast('Claude comparison complete!', 'success');
+        clearSelection();
+    } catch(e) {
+        showToast('Comparison error — check terminal.', 'error');
+        btn.disabled = false;
+        btn.textContent = '✦ Compare with Claude AI';
+    }
 }
 
+// ── Zoom ──────────────────────────────────────────────────────────────────────
+// Build ordered list of photo IDs from the rendered panels
+const zoomPhotoIds = [...document.querySelectorAll('.photo-panel[data-photo-id]')]
+    .map(el => parseInt(el.dataset.photoId));
+let zoomIndex = 0;
+
+function zoom(src, photoId) {
+    if (photoId) {
+        const idx = zoomPhotoIds.indexOf(parseInt(photoId));
+        if (idx !== -1) zoomIndex = idx;
+    }
+    _renderZoom();
+    document.getElementById('zoom').classList.add('active');
+}
+function _renderZoom() {
+    const id = zoomPhotoIds[zoomIndex];
+    document.getElementById('zoom-img').src = `/photo/${id}`;
+    const total = zoomPhotoIds.length;
+    document.getElementById('zoom-counter').textContent = total > 1 ? `${zoomIndex + 1} / ${total}` : '';
+    document.getElementById('zoom-prev').disabled = zoomIndex === 0;
+    document.getElementById('zoom-next').disabled = zoomIndex === total - 1;
+}
+function zoomNav(dir) {
+    zoomIndex = Math.max(0, Math.min(zoomPhotoIds.length - 1, zoomIndex + dir));
+    _renderZoom();
+}
 function closeZoom() {
     document.getElementById('zoom').classList.remove('active');
 }
 
 document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') closeZoom();
-    if (e.key === 'b' || e.key === 'B') { e.preventDefault(); addBest(); }
-    if (e.key === 'x' || e.key === 'X') { e.preventDefault(); skipAll(); }
+    const zoomOpen = document.getElementById('zoom').classList.contains('active');
+    if (e.key === 'Escape') { if (zoomOpen) closeZoom(); else clearSelection(); }
+    if (zoomOpen && (e.key === 'ArrowLeft'  || e.key === 'ArrowUp'))   { e.preventDefault(); zoomNav(-1); }
+    if (zoomOpen && (e.key === 'ArrowRight' || e.key === 'ArrowDown')) { e.preventDefault(); zoomNav(1); }
+    if (!zoomOpen && (e.key === 'b' || e.key === 'B')) { e.preventDefault(); addBest(); }
+    if (!zoomOpen && (e.key === 'x' || e.key === 'X')) { e.preventDefault(); skipAll(); }
+    if (!zoomOpen && (e.key === 'a' || e.key === 'A') && !e.metaKey && !e.ctrlKey) { e.preventDefault(); toggleSelectAll(); }
 });
 
+// ── Misc ──────────────────────────────────────────────────────────────────────
 function showToast(msg, type) {
     const t = document.getElementById('toast');
     t.textContent = msg;
-    t.className = `toast show ${type}`;
-    setTimeout(() => t.classList.remove('show'), 2800);
+    t.className = `toast show ${type || ''}`;
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove('show'), 2800);
 }
+
+function toggleDetail(btn) {
+    const detail = btn.nextElementSibling;
+    const open = detail.style.display !== 'none';
+    detail.style.display = open ? 'none' : 'block';
+    btn.textContent = open ? 'Show Full Analysis ▼' : 'Hide Full Analysis ▲';
+}
+
+// Init
+renderPage();
 </script>
 </body>
 </html>

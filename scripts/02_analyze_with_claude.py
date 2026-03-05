@@ -21,9 +21,10 @@ How to run:
 
 import anthropic
 import base64
+import heapq
 import json
 import sys
-import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from io import BytesIO
 from pathlib import Path
 from PIL import Image
@@ -31,29 +32,24 @@ from tqdm import tqdm
 
 sys.path.insert(0, str(Path(__file__).parent))
 from config import *
+from utils import open_image
 
 
 def resize_for_api(image_path, max_size=1280):
     """
     Resize a photo for sending to Claude's API.
-    Makes the image smaller so it uploads faster and costs less.
+    Supports both standard formats and RAW camera files.
     Returns base64-encoded JPEG data.
     """
-    with Image.open(image_path) as img:
-        # Convert to RGB if needed (handles RGBA, palette modes, etc.)
-        if img.mode not in ("RGB", "L"):
-            img = img.convert("RGB")
-
-        # Resize if larger than max_size
-        if max(img.size) > max_size:
-            ratio = max_size / max(img.size)
-            new_size = (int(img.width * ratio), int(img.height * ratio))
-            img = img.resize(new_size, Image.LANCZOS)
-
-        # Save to bytes as JPEG
-        buffer = BytesIO()
-        img.save(buffer, format="JPEG", quality=85)
-        return base64.standard_b64encode(buffer.getvalue()).decode("utf-8")
+    img = open_image(image_path, half_size=False)
+    if img.mode not in ("RGB", "L"):
+        img = img.convert("RGB")
+    if max(img.size) > max_size:
+        ratio = max_size / max(img.size)
+        img = img.resize((int(img.width * ratio), int(img.height * ratio)), Image.LANCZOS)
+    buffer = BytesIO()
+    img.save(buffer, format="JPEG", quality=85)
+    return base64.standard_b64encode(buffer.getvalue()).decode("utf-8")
 
 
 def analyze_photo(client, image_path, model):
@@ -127,6 +123,12 @@ For editing_tips: be specific like a photography teacher — name actual values 
             ],
         )
 
+        # Track token usage for actual cost calculation
+        # Pricing: input $3/M tokens, output $15/M tokens (Sonnet 4.6)
+        if hasattr(message, "usage"):
+            analyze_photo._input_tokens  += message.usage.input_tokens
+            analyze_photo._output_tokens += message.usage.output_tokens
+
         # Parse Claude's response
         response_text = message.content[0].text.strip()
 
@@ -155,6 +157,163 @@ For editing_tips: be specific like a photography teacher — name actual values 
             "title": "Error",
             "score": 0,
         }
+
+
+def _dhash(image_path, size=8):
+    """
+    Difference hash — fast perceptual fingerprint.
+    Returns a list of bits, or None if the image can't be read.
+    Used to cluster visually similar photos before Claude selection.
+    """
+    try:
+        img = open_image(image_path, half_size=True)
+        img = img.convert("L").resize((size + 1, size), Image.LANCZOS)
+        px = list(img.tobytes())
+        bits = []
+        for row in range(size):
+            for col in range(size):
+                idx = row * (size + 1) + col
+                bits.append(1 if px[idx] > px[idx + 1] else 0)
+        return bits
+    except Exception:
+        return None
+
+
+def _hamming(a, b):
+    if a is None or b is None:
+        return 999
+    return sum(x != y for x, y in zip(a, b))
+
+
+def _diverse_select(photos, budget, hash_threshold=12):
+    """
+    Pick `budget` photos from `photos` with diversity across visual scenes.
+
+    Two-phase algorithm — all local, no API cost:
+
+    Phase 1 — Diversity guarantee:
+      Every cluster whose best photo scores above the median gets exactly one
+      guaranteed slot (its best photo), regardless of how other clusters rank.
+      This ensures a proposal cluster and a kiss cluster both get seen by Claude
+      even if the kiss shots happen to outscore every proposal shot.
+      Lame clusters (below median) don't get a guaranteed slot.
+
+    Phase 2 — Quality fill:
+      Remaining budget slots go to the globally highest-scoring next photos
+      across all clusters (priority queue). The kiss cluster's shots #2-10
+      compete here on actual score — great burst shots keep winning slots.
+
+    Budget warning:
+      If the number of worthy clusters (above-median) exceeds the budget,
+      Cullo warns you to raise MAX_CLAUDE_PHOTOS so no key scene is left out.
+    """
+    print()
+    print(f"  Fingerprinting {len(photos)} photos locally (free, no internet)…")
+
+    # Compute hashes in parallel — image decoding is I/O bound
+    hashed_map = {}
+
+    def _hash_one(p):
+        return p, _dhash(Path(p["file"]))
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        futures = {pool.submit(_hash_one, p): p for p in photos}
+        for future in tqdm(as_completed(futures), total=len(futures),
+                           desc="  Hashing", unit="photo", leave=False):
+            p, h = future.result()
+            hashed_map[id(p)] = (p, h)
+
+    # Preserve original order so score-sorting works correctly
+    hashed = [hashed_map[id(p)] for p in photos]
+
+    # Greedy cluster
+    clusters = []   # list of [ (photo, hash), ... ]
+    centroids = []  # one representative hash per cluster
+
+    for photo, h in hashed:
+        best_cluster = None
+        best_dist = hash_threshold + 1
+        for i, centroid in enumerate(centroids):
+            d = _hamming(h, centroid)
+            if d < best_dist:
+                best_dist = d
+                best_cluster = i
+        if best_cluster is not None:
+            clusters[best_cluster].append((photo, h))
+        else:
+            clusters.append([(photo, h)])
+            centroids.append(h)
+
+    # Sort photos within each cluster by quality score (best first)
+    for c in clusters:
+        c.sort(key=lambda x: x[0].get("overall_score", 0), reverse=True)
+
+    # Sort clusters by their best photo's score (descending)
+    clusters.sort(key=lambda c: c[0][0].get("overall_score", 0), reverse=True)
+
+    # Quality threshold: median score across all best-of-cluster photos.
+    # Clusters above this are "worthy" and get a guaranteed Phase 1 slot.
+    best_scores = sorted(
+        [c[0][0].get("overall_score", 0) for c in clusters], reverse=True
+    )
+    median_score = best_scores[len(best_scores) // 2] if best_scores else 0
+    worthy_clusters   = [c for c in clusters if c[0][0].get("overall_score", 0) >= median_score]
+    unworthy_clusters = [c for c in clusters if c[0][0].get("overall_score", 0) <  median_score]
+
+    print(f"  → Found {len(clusters)} distinct scenes across {len(photos)} photos.")
+    print(f"     {len(worthy_clusters)} scenes above quality threshold, {len(unworthy_clusters)} below.")
+
+    # ── Budget tip ───────────────────────────────────────────────────────────
+    # If worthy scenes exceed the budget, some won't get auto-analyzed this run.
+    # They're still in Browse All and can be sent to Claude one at a time.
+    if len(worthy_clusters) > budget:
+        suggested = len(worthy_clusters) + 10
+        pct_limit = int(len(photos) * TOP_PERCENT / 100)
+        if pct_limit < MAX_CLAUDE_PHOTOS:
+            setting = f"MAX_CLAUDE_PHOTOS={suggested}  (or raise TOP_PERCENT in .env)"
+        else:
+            setting = f"MAX_CLAUDE_PHOTOS={suggested}"
+        print()
+        print(f"  💡 {len(worthy_clusters)} scenes detected — sending the best {budget} to Claude now.")
+        print(f"     The rest will appear in Browse All. You can click any photo → Send to Claude")
+        print(f"     to analyze it on the spot, or raise {setting}")
+        print(f"     to auto-analyze everything next run (~${suggested * 0.015:.2f}).")
+        print()
+
+    selected = []
+
+    # ── Phase 1: one guaranteed slot per worthy cluster ─────────────────────
+    for cluster in worthy_clusters:
+        if len(selected) >= budget:
+            break
+        selected.append(cluster[0][0])  # best photo from this cluster
+    guaranteed = len(selected)
+
+    # ── Phase 2: fill remaining slots by score (priority queue) ─────────────
+    # Each cluster contributes its next-best photo to the heap.
+    # Already-selected Phase 1 photos are at index 0 — start Phase 2 at index 1
+    # for worthy clusters, index 0 for unworthy clusters.
+    heap = []
+    for ci, cluster in enumerate(clusters):
+        is_worthy = cluster in worthy_clusters
+        start_idx = 1 if is_worthy else 0
+        if start_idx < len(cluster):
+            score = cluster[start_idx][0].get("overall_score", 0)
+            heapq.heappush(heap, (-score, ci, start_idx))
+
+    while heap and len(selected) < budget:
+        neg_score, ci, photo_idx = heapq.heappop(heap)
+        selected.append(clusters[ci][photo_idx][0])
+        next_idx = photo_idx + 1
+        if next_idx < len(clusters[ci]):
+            next_score = clusters[ci][next_idx][0].get("overall_score", 0)
+            heapq.heappush(heap, (-next_score, ci, next_idx))
+
+    phase2 = len(selected) - guaranteed
+    if phase2 > 0:
+        print(f"     Phase 1: {guaranteed} scene representatives  •  Phase 2: {phase2} additional best shots")
+
+    return selected
 
 
 def main():
@@ -192,18 +351,64 @@ def main():
     # Filter to valid photos only (no errors)
     valid = [p for p in catalog if "error" not in p]
 
-    # Select top photos
-    top_count = min(
+    # Budget: how many photos to send to Claude total
+    budget = min(
         int(len(valid) * TOP_PERCENT / 100),
         MAX_CLAUDE_PHOTOS
     )
-    top_photos = valid[:top_count]  # Already sorted by score from Step 1
+
+    # ── Diversity-aware selection ─────────────────────────────────────────
+    # Problem: a wedding with 847 photos might have 50 sharp altar shots
+    # that all score 85+. Without diversity, Claude only sees altar shots.
+    #
+    # Solution: cluster photos by visual similarity first (cheap hash),
+    # then pick the best representative from each cluster before filling
+    # remaining slots. This ensures Claude sees every distinct moment.
+    #
+    # Already-analyzed photos keep their analysis and count toward the pool
+    # but don't consume budget (no API call needed).
+
+    already_analyzed = [p for p in valid if p.get("claude_analysis") and "error" not in p.get("claude_analysis", {})]
+    needs_analysis   = [p for p in valid if not p.get("claude_analysis") or "error" in p.get("claude_analysis", {})]
+
+    remaining_budget = max(0, budget - len(already_analyzed))
+
+    top_photos = already_analyzed[:]  # start with what we have
+
+    if remaining_budget > 0 and needs_analysis:
+        top_photos += _diverse_select(needs_analysis, remaining_budget)
+
+    # Keep only up to budget total
+    top_photos = top_photos[:budget]
+    top_count  = len(top_photos)
+
+    est_cost = top_count * 0.015
+    if est_cost < 5.00:
+        cost_note = "yes, really — cheaper than a coffee"
+    elif est_cost < 12.00:
+        cost_note = "about the price of a coffee"
+    elif est_cost < 20.00:
+        cost_note = "about the price of a meal out"
+    else:
+        cost_note = "consider lowering MAX_CLAUDE_PHOTOS in .env"
+
+    new_count = len([p for p in top_photos if not p.get("claude_analysis") or "error" in p.get("claude_analysis", {})])
 
     print(f"  Total photos in catalog: {len(catalog)}")
-    print(f"  Selecting top {TOP_PERCENT}%: {top_count} photos")
-    print(f"  Estimated cost: ~${top_count * 0.015:.2f}")
+    print(f"  Budget: {budget} photos  (top {TOP_PERCENT}%, capped at {MAX_CLAUDE_PHOTOS})")
+    if already_analyzed:
+        print(f"  Already analyzed: {len(already_analyzed)}  •  New to analyze: {new_count}")
+    print(f"  Diversity selection: scans ALL {len(needs_analysis)} unanalyzed photos locally, picks best from each scene")
+    print(f"  Estimated cost: ~${new_count * 0.015:.2f}  ({cost_note})")
     print(f"  Using model: {CLAUDE_MODEL}")
     print()
+
+    # Skip confirmation if nothing new to analyze
+    new_to_analyze = [p for p in top_photos if not p.get("claude_analysis") or "error" in p.get("claude_analysis", {})]
+    if not new_to_analyze:
+        print("  ✓  All selected photos already analyzed — nothing new to send.")
+        print()
+        sys.exit(0)
 
     # Confirm before spending money
     print("  Ready to analyze? This will use your API credits.")
@@ -216,6 +421,10 @@ def main():
 
     # Create API client
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+
+    # Token counters for actual cost tracking
+    analyze_photo._input_tokens = 0
+    analyze_photo._output_tokens = 0
 
     # Analyze each top photo
     analyzed = 0
@@ -246,9 +455,6 @@ def main():
         with open(CATALOG_FILE, "w") as f:
             json.dump(catalog, f, indent=2)
 
-        # Brief pause to be nice to the API
-        time.sleep(0.5)
-
     # Final save
     with open(CATALOG_FILE, "w") as f:
         json.dump(catalog, f, indent=2)
@@ -259,9 +465,17 @@ def main():
     print("  ANALYSIS COMPLETE")
     print("=" * 55)
     print()
+    # Calculate actual cost from token usage
+    # claude-sonnet-4-6 pricing: $3/M input, $15/M output
+    input_cost  = analyze_photo._input_tokens  / 1_000_000 * 3.00
+    output_cost = analyze_photo._output_tokens / 1_000_000 * 15.00
+    actual_cost = input_cost + output_cost
+
     print(f"  Photos analyzed: {analyzed}")
     if errors:
-        print(f"  Errors: {errors}")
+        print(f"  Errors:          {errors}")
+    if actual_cost > 0:
+        print(f"  Actual cost:     ${actual_cost:.4f}  ({analyze_photo._input_tokens:,} input tokens, {analyze_photo._output_tokens:,} output tokens)")
     print()
 
     # Show top results

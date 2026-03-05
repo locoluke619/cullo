@@ -192,6 +192,33 @@ def preflight():
     folder_path = Path(ws_folder) if Path(ws_folder).is_absolute() else PROJECT_DIR / ws_folder
     no_photos = not folder_path.exists() or count_photos(folder_path) == 0
 
+    if no_photos and folder_path.exists():
+        # Maybe they pointed at a parent folder — check for shoot subfolders
+        shoots = find_shoots(folder_path)
+        if shoots:
+            print("  Found photo folders inside your photos directory:")
+            print()
+            for i, (path, n) in enumerate(shoots, 1):
+                print(f"  [{i}]  {path.name:<35}  {n} photos")
+            print()
+            while True:
+                choice = input("  Choose a folder to work on: ").strip()
+                if choice.isdigit():
+                    idx = int(choice) - 1
+                    if 0 <= idx < len(shoots):
+                        chosen = shoots[idx][0]
+                        # Save as active workspace folder
+                        ws_list = _read_workspaces()
+                        for w in ws_list:
+                            if w["id"] == ws["id"]:
+                                w["folder"] = str(chosen)
+                        _write_workspaces(ws_list)
+                        folder_path = chosen
+                        no_photos = False
+                        print()
+                        break
+                print("  Please enter a number from the list.")
+
     if no_photos:
         if not folder_path.exists():
             print(f"  ⚠  Photo folder not found:  {folder_path}")
